@@ -1,0 +1,28 @@
+{
+  "name": "@wa-saas/api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:test-isolation": "tsx src/db/test-isolation.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "@wa-saas/shared": "*",
+    "fastify": "^4.26.0",
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/pg": "^8.18.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}

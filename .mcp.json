@@ -24,6 +24,19 @@
         "-y",
         "@21st-dev/magic@latest"
       ]
+    },
+    "obsidian": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "obsidian-mcp-server"
+      ],
+      "env": {
+        "OBSIDIAN_API_KEY": "b68eb865ade35583da1041d5d64f269960620ff5a6d814b5288d2b7304ad8488",
+        "OBSIDIAN_BASE_URL": "https://127.0.0.1:27124",
+        "OBSIDIAN_VERIFY_SSL": "false",
+        "OBSIDIAN_ENABLE_CACHE": "true"
+      }
     }
   }
 }

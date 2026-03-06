@@ -27,3 +27,13 @@ Thumbs.db
 .aios-core/local/
 .claude/settings.local.json
 .aios/install-log.txt
+
+# Nuxt
+.nuxt/
+.output/
+apps/web/.nuxt/
+apps/web/.output/
+
+# TypeScript build
+apps/api/dist/
+packages/shared/dist/
