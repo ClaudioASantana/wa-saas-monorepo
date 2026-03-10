@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-const ZAPI_BASE = 'https://api.z-api.io/instances'
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080'
 
 export default defineEventHandler(async (event) => {
   const channelId = event.context.params?.id
@@ -8,12 +8,11 @@ export default defineEventHandler(async (event) => {
 
   const config = useRuntimeConfig()
   const supabase = createClient(config.supabaseUrl as string, config.supabaseServiceKey as string)
-  const zapiClientToken = config.zapiClientToken as string | undefined
 
   // 1. Fetch channel credentials from DB
   const { data: channel, error: dbError } = await supabase
     .from('channels')
-    .select('zapi_instance_id, zapi_token')
+    .select('provider_instance_id, provider_token')
     .eq('id', channelId)
     .single()
 
@@ -22,62 +21,52 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Canal não encontrado no banco de dados.' })
   }
 
-  console.log(`[QR Code] Fetching QR for instance: ${channel.zapi_instance_id}`)
+  console.log(`[QR Code] Fetching QR for instance: ${channel.provider_instance_id}`)
 
-  // 2. Call Z-API QR code endpoint
-  const zapiUrl = `${ZAPI_BASE}/${channel.zapi_instance_id}/token/${channel.zapi_token}/qr-code/image`
-  console.log(`[QR Code] Calling Z-API: ${zapiUrl}`)
+  // 2. Call Evolution API QR code / connect endpoint
+  const evolutionUrl = `${EVOLUTION_API_URL}/instance/connect/${channel.provider_instance_id}`
+  console.log(`[QR Code] Calling Evolution API: ${evolutionUrl}`)
 
-  const zapiHeaders: Record<string, string> = {}
-  if (zapiClientToken) zapiHeaders['Client-Token'] = zapiClientToken
+  const evolutionHeaders: Record<string, string> = {
+    'apikey': channel.provider_token
+  }
 
-  const zapiResponse = await fetch(zapiUrl, { headers: zapiHeaders }).catch((err) => {
+  const evolutionResponse = await fetch(evolutionUrl, { headers: evolutionHeaders }).catch((err) => {
     console.error('[QR Code] Fetch failed:', err)
-    throw createError({ statusCode: 502, statusMessage: 'Não foi possível conectar com o Z-API. Verifique sua Instance ID e Token.' })
+    throw createError({ statusCode: 502, statusMessage: 'Não foi possível conectar. Verifique se a API está online.' })
   })
 
-  // 3. Handle Z-API errors
-  if (!zapiResponse.ok) {
+  // 3. Handle Evolution API errors
+  if (!evolutionResponse.ok) {
     let errBody = ''
-    try { errBody = await zapiResponse.text() } catch { /* ignore */ }
-    console.error(`[QR Code] Z-API returned ${zapiResponse.status}: ${errBody}`)
+    try { errBody = await evolutionResponse.text() } catch { /* ignore */ }
+    console.error(`[QR Code] Evolution API returned ${evolutionResponse.status}: ${errBody}`)
 
-    if (zapiResponse.status === 404) {
-      throw createError({ statusCode: 404, statusMessage: 'Instância não encontrada no Z-API. Verifique a Instance ID.' })
+    if (evolutionResponse.status === 404) {
+      throw createError({ statusCode: 404, statusMessage: 'Instância não encontrada na Evolution API. Verifique a Instance ID.' })
     }
-    if (zapiResponse.status === 401) {
-      throw createError({ statusCode: 401, statusMessage: 'Token inválido. Verifique o Token da instância Z-API.' })
+    if (evolutionResponse.status === 401 || evolutionResponse.status === 403) {
+      throw createError({ statusCode: 401, statusMessage: 'Token inválido. Verifique o apikey da instância.' })
     }
-    if (zapiResponse.status === 400) {
-      throw createError({ statusCode: 400, statusMessage: `Z-API: ${errBody}` })
-    }
-    throw createError({ statusCode: 502, statusMessage: `Z-API retornou erro ${zapiResponse.status}: ${errBody}` })
+    throw createError({ statusCode: 502, statusMessage: `Evolution API retornou erro ${evolutionResponse.status}: ${errBody}` })
   }
 
   await supabase.from('channels').update({ status: 'qr_pending' }).eq('id', channelId)
 
-  const contentType = zapiResponse.headers.get('content-type') ?? ''
-  console.log(`[QR Code] Content-Type from Z-API: ${contentType}`)
-
-  let qrDataUrl = ''
-
-  if (contentType.includes('application/json') || contentType.includes('text/')) {
-    // Z-API returns JSON like: { "value": "base64string..." }
-    const json = await zapiResponse.json() as { value?: string; qrcode?: string; base64?: string }
-    console.log('[QR Code] Z-API JSON keys:', Object.keys(json))
-    const base64Str = json.value ?? json.qrcode ?? json.base64 ?? ''
-    if (!base64Str) {
-      throw createError({ statusCode: 502, statusMessage: 'Z-API retornou JSON sem campo de imagem. Tente novamente.' })
+  // Evolution returns JSON with the base64 qr code
+  const json = await evolutionResponse.json() as { base64?: string; state?: string }
+  console.log('[QR Code] Evolution API JSON keys:', Object.keys(json))
+  
+  const base64Str = json.base64 ?? ''
+  if (!base64Str) {
+    if (json.state === 'open') {
+       throw createError({ statusCode: 400, statusMessage: 'Este Whatsapp já está conectado.' })
     }
-    // If already a data URL, return as-is; otherwise wrap it
-    qrDataUrl = base64Str.startsWith('data:') ? base64Str : `data:image/png;base64,${base64Str}`
-  } else {
-    // Raw binary image
-    const imageBuffer = await zapiResponse.arrayBuffer()
-    const base64 = Buffer.from(imageBuffer).toString('base64')
-    const imgType = contentType || 'image/png'
-    qrDataUrl = `data:${imgType};base64,${base64}`
+    throw createError({ statusCode: 502, statusMessage: 'Evolution API retornou JSON sem campo de imagem base64. Tente novamente.' })
   }
+
+  // If already a data URL, return as-is; otherwise wrap it
+  const qrDataUrl = base64Str.startsWith('data:') ? base64Str : `data:image/png;base64,${base64Str}`
 
   console.log(`[QR Code] ✅ QR ready, dataUrl length: ${qrDataUrl.length} chars`)
   return { qrcode: qrDataUrl }

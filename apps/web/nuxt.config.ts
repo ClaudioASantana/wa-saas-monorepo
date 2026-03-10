@@ -9,19 +9,25 @@ export default defineNuxtConfig({
   supabase: {
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_KEY,
-    redirect: false // Redirecionamentos customizados serão feitos via middleware ou rota
+    redirect: false, // Redirecionamentos customizados serão feitos via middleware ou rota
+    types: './types/database.types.ts',
   },
   typescript: {
     strict: true,
     typeCheck: false,
   },
+  devServer: {
+    host: '0.0.0.0'
+  },
   runtimeConfig: {
     // Private (server-side only) - never exposed to the client
     supabaseUrl: process.env.SUPABASE_URL || '',
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',
-    zapiClientToken: process.env.ZAPI_CLIENT_TOKEN || '',
+    // Evolution API configuration
+    evolutionApiUrl: process.env.EVOLUTION_API_URL || 'http://localhost:8080',
     public: {
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:4000',
+      appUrl: process.env.NUXT_PUBLIC_APP_URL || 'http://localhost:3000',
     },
   },
 })

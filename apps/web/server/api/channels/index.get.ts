@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
 
   const { data, error } = await supabase
     .from('channels')
-    .select('id, name, status, phone_number, zapi_instance_id, created_at')
+    .select('id, name, status, phone_number, provider_instance_id, created_at')
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: true })
 

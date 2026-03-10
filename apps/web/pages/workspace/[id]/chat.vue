@@ -53,7 +53,7 @@
           <UIcon name="i-heroicons-chat-bubble-left-right" class="w-10 h-10 text-slate-300 mb-3" />
           <p class="text-sm text-slate-500">Nenhuma conversa ainda.</p>
           <p class="text-xs text-slate-400 mt-1">
-            As mensagens aparecerão aqui quando chegarem via Z-API.
+            As mensagens aparecerão aqui quando chegarem via Evolution API.
           </p>
         </div>
 
@@ -261,11 +261,15 @@
 </template>
 
 <script setup lang="ts">
+import type { RealtimeChannel } from '@supabase/supabase-js'
+
 definePageMeta({ layout: 'workspace', middleware: ['auth'] })
 
 const route = useRoute()
 const workspaceId = route.params.id as string
 const supabase = useSupabaseClient()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const supabaseRaw = supabase as any
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Contact {
@@ -286,7 +290,8 @@ interface Message {
   id: string
   direction: string
   type: string
-  body: string | null
+  content: string | null
+  body: string | null         // coluna gerada = content
   media_url: string | null
   sender_name: string | null
   created_at: string
@@ -315,7 +320,7 @@ const {
     .eq('workspace_id', workspaceId)
     .order('last_message_at', { ascending: false })
   if (error) throw error
-  return data
+  return (data ?? []) as unknown as Conversation[]
 })
 
 const filteredConversations = computed(() => {
@@ -340,14 +345,14 @@ const {
 } = useAsyncData<Message[]>(
   () => `msgs-${convId.value}`,
   async () => {
-    if (!convId.value) return []
+    if (!convId.value) return [] as Message[]
     const { data, error } = await supabase
       .from('messages')
-      .select('id, direction, type, body, media_url, sender_name, created_at')
+      .select('id, direction, type, content, media_url, sender_name, created_at')
       .eq('conversation_id', convId.value)
       .order('created_at', { ascending: true })
     if (error) throw error
-    return data
+    return (data ?? []) as unknown as Message[]
   },
   { watch: [convId] }
 )
@@ -365,7 +370,7 @@ const selectConversation = async (conv: Conversation) => {
   selectedConv.value = conv
   // Mark as read
   if (conv.unread_count > 0) {
-    await supabase.from('conversations').update({ unread_count: 0 }).eq('id', conv.id)
+    await supabaseRaw.from('conversations').update({ unread_count: 0 }).eq('id', conv.id)
     refreshConv()
   }
 }
@@ -406,16 +411,59 @@ const resolveConversation = async () => {
   refreshConv()
 }
 
-// ── Polling ───────────────────────────────────────────────────────────────────
-let pollInterval: ReturnType<typeof setInterval> | null = null
+// ── Realtime ──────────────────────────────────────────────────────────────────
+let msgChannel: RealtimeChannel | null = null
+
+const subscribeToConversations = () => {
+  supabase
+    .channel(`workspace-convs-${workspaceId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'conversations',
+        filter: `workspace_id=eq.${workspaceId}`,
+      },
+      () => refreshConv()
+    )
+    .subscribe()
+}
+
+const subscribeToMessages = (conversationId: string) => {
+  if (msgChannel) supabase.removeChannel(msgChannel)
+  msgChannel = supabase
+    .channel(`conv-msgs-${conversationId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`,
+      },
+      (payload) => {
+        const newMsg = payload.new as Message
+        // Inject directly — no extra round-trip to the DB
+        if (messages.value && !messages.value.find((m) => m.id === newMsg.id)) {
+          messages.value = [...messages.value, newMsg]
+        }
+      }
+    )
+    .subscribe()
+}
+
 onMounted(() => {
-  pollInterval = setInterval(() => {
-    refreshConv()
-    if (convId.value) refreshMessages()
-  }, 5000)
+  subscribeToConversations()
 })
+
+watch(convId, (id) => {
+  if (id) subscribeToMessages(id)
+  else if (msgChannel) supabase.removeChannel(msgChannel)
+})
+
 onUnmounted(() => {
-  if (pollInterval) clearInterval(pollInterval)
+  supabase.removeAllChannels()
 })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

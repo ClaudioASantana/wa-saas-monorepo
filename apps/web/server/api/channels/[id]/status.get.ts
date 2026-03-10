@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-const ZAPI_BASE = 'https://api.z-api.io/instances'
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080'
 
 export default defineEventHandler(async (event) => {
   const channelId = event.context.params?.id
@@ -8,34 +8,39 @@ export default defineEventHandler(async (event) => {
 
   const config = useRuntimeConfig()
   const supabase = createClient(config.supabaseUrl as string, config.supabaseServiceKey as string)
-  const zapiClientToken = config.zapiClientToken as string | undefined
 
   // 1. Fetch channel credentials from DB
   const { data: channel } = await supabase
     .from('channels')
-    .select('zapi_instance_id, zapi_token')
+    .select('provider_instance_id, provider_token')
     .eq('id', channelId)
     .single()
 
   if (!channel) throw createError({ statusCode: 404, statusMessage: 'Channel not found' })
 
-  // 2. Call Z-API to get instance status (with Client-Token)
-  const zapiUrl = `${ZAPI_BASE}/${channel.zapi_instance_id}/token/${channel.zapi_token}/status`
-  const zapiHeaders: Record<string, string> = {}
-  if (zapiClientToken) zapiHeaders['Client-Token'] = zapiClientToken
+  // 2. Call Evolution API to get instance status
+  const evolutionUrl = `${EVOLUTION_API_URL}/instance/connectionState/${channel.provider_instance_id}`
+  const evolutionHeaders: Record<string, string> = {
+    'apikey': channel.provider_token
+  }
 
-  const zapiResponse = await fetch(zapiUrl, { headers: zapiHeaders })
-  const zapiData = await zapiResponse.json() as { connected: boolean; smartphoneConnected?: boolean; phone?: string }
+  const evolutionResponse = await fetch(evolutionUrl, { headers: evolutionHeaders })
+  const evolutionData = await evolutionResponse.json() as { instance?: { state?: string }; state?: string; phone?: string }
 
-  console.log(`[Status] Z-API raw response for channel ${channelId}:`, JSON.stringify(zapiData))
+  console.log(`[Status] Evolution raw response for channel ${channelId}:`, JSON.stringify(evolutionData))
 
   // 3. Determine new status
-  const newStatus = zapiData.connected ? 'connected' : 'disconnected'
-  const phoneNumber = zapiData.phone ?? null
+  // Evolution returns state within instance.state or at the root depending on versions.
+  const stateStr = evolutionData?.instance?.state || evolutionData?.state
+  const newStatus = stateStr === 'open' ? 'connected' : 'disconnected'
+  
+  // Note: Evolution API connectionState might not return the phone number directly in V2.
+  // We can fetch from `/instance/fetchInstances` if we need the phone, but for status pooling it's okay.
+  const phoneNumber = evolutionData.phone ?? null
 
   // 4. Update DB status
   await supabase.from('channels').update({ status: newStatus, phone_number: phoneNumber }).eq('id', channelId)
 
   console.log(`[Status] Channel ${channelId} → ${newStatus}`)
-  return { status: newStatus, phone: phoneNumber, raw: zapiData }
+  return { status: newStatus, phone: phoneNumber, raw: evolutionData }
 })

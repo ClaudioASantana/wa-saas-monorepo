@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-const ZAPI_BASE = 'https://api.z-api.io/instances'
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   // 1. Get conversation + channel + contact
   const { data: conv } = await supabase
     .from('conversations')
-    .select('id, contact:contacts(phone), channel:channels(zapi_instance_id, zapi_token)')
+    .select('id, tenant_id, contact:contacts(phone), channel:channels(provider_instance_id, provider_token)')
     .eq('id', conversation_id)
     .single()
 
@@ -27,25 +27,39 @@ export default defineEventHandler(async (event) => {
 
   if (!channel || !contact) throw createError({ statusCode: 404, statusMessage: 'Channel or contact not found' })
 
-  // 2. Send via Z-API
-  const zapiUrl = `${ZAPI_BASE}/${channel.zapi_instance_id}/token/${channel.zapi_token}/send-text`
-  const zapiRes = await fetch(zapiUrl, {
+  // 2. Send via Evolution API
+  const evolutionUrl = `${EVOLUTION_API_URL}/message/sendText/${channel.provider_instance_id}`
+  const evolutionRes = await fetch(evolutionUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone: contact.phone, message }),
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': channel.provider_token
+    },
+    body: JSON.stringify({
+      number: contact.phone,
+      text: message
+    }),
   })
 
-  if (!zapiRes.ok) {
-    const zapiErr = await zapiRes.text()
-    throw createError({ statusCode: 502, statusMessage: `Z-API error: ${zapiErr}` })
+  // 3. Save outgoing message to DB
+  let errorText = ''
+  if (!evolutionRes.ok) {
+    // If it fails, we should still probably log it or throw
+    errorText = await evolutionRes.text()
+    console.error(`Evolution API error: ${errorText}`)
+  }
+  
+  // NOTE: even if sending fails, maybe we don't save or we save as failed. For now, if not ok, we throw:
+  if (!evolutionRes.ok) {
+     throw createError({ statusCode: 502, statusMessage: `Evolution API error: ${errorText}` })
   }
 
-  // 3. Save outgoing message to DB
   const { data: msg } = await supabase.from('messages').insert({
     conversation_id,
+    tenant_id: conv.tenant_id,
     direction: 'outgoing',
     type: 'text',
-    body: message,
+    content: message,
     sender_name: 'Agente',
   }).select().single()
 

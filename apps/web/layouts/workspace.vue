@@ -52,7 +52,7 @@
         class="h-16 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur z-10 shrink-0"
       >
         <div class="flex items-center space-x-4">
-          <!-- TODO: Z-API Connection Status Widget -->
+          <!-- TODO: Evolution API Connection Status Widget -->
           <UBadge color="red" variant="subtle" size="sm">WhatsApp Desconectado</UBadge>
         </div>
         <div class="flex items-center space-x-3">
