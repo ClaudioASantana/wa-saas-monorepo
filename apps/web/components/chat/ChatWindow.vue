@@ -17,7 +17,9 @@
     </div>
 
     <template v-else>
-      <div class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur flex items-center justify-between px-6 shrink-0">
+      <div
+        class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur flex items-center justify-between px-6 shrink-0"
+      >
         <div class="flex items-center space-x-3">
           <UAvatar
             :alt="conversation.contact?.name || conversation.contact?.phone || '?'"
@@ -33,6 +35,40 @@
           </div>
         </div>
         <div class="flex items-center space-x-2">
+          <!-- Assign Button -->
+          <UButton
+            v-if="!conversation.agent_id"
+            icon="i-heroicons-user-plus"
+            color="primary"
+            variant="soft"
+            size="sm"
+            @click="$emit('assign', currentAgentId)"
+          >
+            Assumir
+          </UButton>
+          <UButton
+            v-else-if="conversation.agent_id === currentAgentId"
+            icon="i-heroicons-user-minus"
+            color="red"
+            variant="ghost"
+            size="sm"
+            @click="$emit('assign', null)"
+          >
+            Liberar
+          </UButton>
+          <UBadge
+            v-else
+            color="gray"
+            variant="subtle"
+            size="xs"
+            class="flex items-center gap-1"
+          >
+            <UIcon name="i-heroicons-user" />
+            {{ conversation.agent?.name || 'Agente' }}
+          </UBadge>
+
+          <UDivider orientation="vertical" />
+
           <UBadge
             :color="conversation.status === 'open' ? 'green' : 'gray'"
             variant="subtle"
@@ -54,21 +90,34 @@
       </div>
 
       <!-- Messages -->
-      <div ref="container" class="flex-1 overflow-y-auto p-6 space-y-3">
+      <div
+        ref="container"
+        class="flex-1 overflow-y-auto p-6 space-y-3"
+      >
         <div v-if="pending" class="flex justify-center py-8">
-          <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 text-primary-400 animate-spin" />
+          <UIcon
+            name="i-heroicons-arrow-path"
+            class="w-6 h-6 text-primary-400 animate-spin"
+          />
         </div>
         <template v-else>
           <div v-if="!messages.length" class="text-center text-slate-400 text-sm py-8">
             Nenhuma mensagem ainda nesta conversa.
           </div>
-          <MessageItem v-for="msg in messages" :key="msg.id" :message="msg" />
+          <MessageItem
+            v-for="msg in messages"
+            :key="msg.id"
+            :message="msg"
+          />
         </template>
       </div>
 
       <!-- Input -->
       <div class="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0">
-        <form class="flex items-end space-x-2 max-w-4xl mx-auto" @submit.prevent="handleSend">
+        <form
+          class="flex items-end space-x-2 max-w-4xl mx-auto"
+          @submit.prevent="handleSend"
+        >
           <UTextarea
             v-model="input"
             autoresize
@@ -78,7 +127,14 @@
             class="flex-1"
             @keydown.enter.exact.prevent="handleSend"
           />
-          <UButton type="submit" icon="i-heroicons-paper-airplane" color="primary" class="shrink-0" :loading="sending" :disabled="!input.trim()" />
+          <UButton
+            type="submit"
+            icon="i-heroicons-paper-airplane"
+            color="primary"
+            class="shrink-0"
+            :loading="sending"
+            :disabled="!input.trim()"
+          />
         </form>
       </div>
     </template>
@@ -95,9 +151,10 @@ const props = defineProps<{
   pending?: boolean
   sending?: boolean
   resolving?: boolean
+  currentAgentId?: string
 }>()
 
-const emit = defineEmits(['send', 'resolve'])
+const emit = defineEmits(['send', 'resolve', 'assign'])
 const input = ref('')
 const container = ref<HTMLElement | null>(null)
 

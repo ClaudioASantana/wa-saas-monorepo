@@ -7,6 +7,7 @@
       :conversations="filteredConversations"
       :selected-id="selectedConv?.id"
       :pending="convPending"
+      :current-agent-id="currentAgent?.id"
       @select="selectConversation"
     />
 
@@ -17,8 +18,10 @@
       :pending="msgPending"
       :sending="sending"
       :resolving="resolving"
+      :current-agent-id="currentAgent?.id"
       @send="sendMessage"
       @resolve="resolveConversation"
+      @assign="assignConversation"
     />
 
     <!-- Right: Contact Details -->
@@ -32,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Conversation, Message } from '~/types/chat.types'
+import type { Conversation, Message, Agent } from '~/types/chat.types'
 import ConversationList from '~/components/chat/ConversationList.vue'
 import ChatWindow from '~/components/chat/ChatWindow.vue'
 import ContactSidebar from '~/components/chat/ContactSidebar.vue'
@@ -48,12 +51,15 @@ const supabase = useSupabaseClient()
 const supabaseRaw = supabase as any
 
 // ── State ─────────────────────────────────────────────────────────────────────
-const filter = ref<'all' | 'open' | 'resolved'>('all')
+const filter = ref<'all' | 'open' | 'resolved' | 'mine'>('all')
 const search = ref('')
 const selectedConv = ref<Conversation | null>(null)
 const sending = ref(false)
 const resolving = ref(false)
 const savingNotes = ref(false)
+
+const user = useSupabaseUser()
+const currentAgent = ref<Agent | null>(null)
 
 // ── Conversations ─────────────────────────────────────────────────────────────
 const {
@@ -64,7 +70,7 @@ const {
   const { data, error } = await supabase
     .from('conversations')
     .select(
-      'id, workspace_id, channel_id, contact_id, tenant_id, status, last_message_at, last_message_preview, unread_count, created_at, contact:contacts(id, name, phone, notes)'
+      'id, workspace_id, channel_id, contact_id, agent_id, tenant_id, status, last_message_at, last_message_preview, unread_count, created_at, contact:contacts(id, name, phone, notes), agent:agents(id, name)'
     )
     .eq('workspace_id', workspaceId)
     .order('last_message_at', { ascending: false })
@@ -74,7 +80,11 @@ const {
 
 const filteredConversations = computed(() => {
   let list = conversations.value ?? []
-  if (filter.value !== 'all') list = list.filter((c) => c.status === filter.value)
+  if (filter.value === 'mine') {
+    list = list.filter((c) => c.agent_id === currentAgent.value?.id)
+  } else if (filter.value !== 'all') {
+    list = list.filter((c) => c.status === filter.value)
+  }
   if (search.value) {
     const q = search.value.toLowerCase()
     list = list.filter(
@@ -184,6 +194,34 @@ const resolveConversation = async () => {
   refreshConv()
 }
 
+const assignConversation = async (agentId: string | null) => {
+  if (!selectedConv.value) return
+  try {
+    await $fetch('/api/chat/assign', {
+      method: 'POST',
+      body: { conversationId: selectedConv.value.id, agentId }
+    })
+    
+    // Update local state for immediate feedback
+    if (selectedConv.value) {
+      selectedConv.value.agent_id = agentId
+    }
+    
+    refreshConv()
+    useToast().add({
+      title: agentId ? 'Conversa atribuída!' : 'Conversa liberada!',
+      icon: 'i-heroicons-check-circle',
+      color: 'green'
+    })
+  } catch (e: any) {
+    useToast().add({
+      title: 'Erro ao atribuir conversa',
+      description: e.message,
+      color: 'red'
+    })
+  }
+}
+
 // ── Realtime (Socket.IO) ──────────────────────────────────────────────────────
 const handleIncomingMessage = (newMsg: {
   conversationId: string
@@ -225,13 +263,37 @@ const handleMessageUpdate = (update: {
   }
 }
 
-onMounted(() => {
+const handleStatusChanged = (event: {
+  conversationId: string
+  status: string
+  agentId?: string | null
+}) => {
+  if (selectedConv.value?.id === event.conversationId) {
+    selectedConv.value.status = event.status as any
+    selectedConv.value.agent_id = event.agentId || null
+  }
+  refreshConv()
+}
+
+onMounted(async () => {
   onEvent('message:new', handleIncomingMessage)
   onEvent('message:update', handleMessageUpdate)
+  onEvent('conversation:status_changed', handleStatusChanged)
+
+  // Fetch current agent record
+  if (user.value?.email) {
+    const { data } = await supabase
+      .from('agents')
+      .select('id, name, email, role')
+      .eq('email', user.value.email)
+      .single()
+    if (data) currentAgent.value = data as any
+  }
 })
 
 onUnmounted(() => {
   offEvent('message:new')
   offEvent('message:update')
+  offEvent('conversation:status_changed')
 })
 </script>

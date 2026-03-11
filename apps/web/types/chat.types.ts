@@ -13,11 +13,20 @@ export interface Contact {
   created_at: string
 }
 
+export interface Agent {
+  id: string
+  name: string
+  email: string
+  role: 'admin' | 'supervisor' | 'agent'
+  avatar_url?: string | null
+}
+
 export interface Conversation {
   id: string
   workspace_id: string
   channel_id: string
   contact_id: string
+  agent_id: string | null
   tenant_id: string
   status: ConversationStatus
   unread_count: number
@@ -25,6 +34,7 @@ export interface Conversation {
   last_message_preview: string | null
   created_at: string
   contact?: Contact
+  agent?: Agent
 }
 
 export interface Message {
@@ -63,4 +73,5 @@ export interface ConversationStatusChangedEvent {
   conversationId: string
   status: ConversationStatus
   lastMessageAt: string
+  agentId?: string | null
 }

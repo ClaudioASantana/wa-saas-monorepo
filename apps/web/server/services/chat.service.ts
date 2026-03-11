@@ -34,15 +34,40 @@ export class ChatService {
         },
         { onConflict: 'channel_id,contact_id' }
       )
-      .select('id, workspace_id, channel_id, contact_id, tenant_id, status, unread_count, last_message_at, last_message_preview, created_at')
+      .select('id, workspace_id, channel_id, contact_id, agent_id, tenant_id, status, unread_count, last_message_at, last_message_preview, created_at')
       .single()
 
     if (error || !data) throw error || new Error('Failed to upsert conversation')
     
     // Notify status change
-    this.notifyStatusChanged(params.tenantId, data.id, data.status as ConversationStatus, now)
+    this.notifyStatusChanged(params.tenantId, data.id, data.status as ConversationStatus, now, data.agent_id)
     
     return data as unknown as Conversation
+  }
+
+  async assignConversation(conversationId: string, tenantId: string, agentId: string | null): Promise<void> {
+    const { error } = await this.supabase
+      .from('conversations')
+      .update({ agent_id: agentId })
+      .eq('id', conversationId)
+      .eq('tenant_id', tenantId)
+    
+    if (error) throw error
+
+    // Fetch latest status for notification
+    const { data: conv } = await this.supabase
+      .from('conversations')
+      .select('status, last_message_at')
+      .eq('id', conversationId)
+      .single()
+
+    this.notifyStatusChanged(
+      tenantId, 
+      conversationId, 
+      (conv?.status as ConversationStatus) || 'open', 
+      conv?.last_message_at || new Date().toISOString(),
+      agentId
+    )
   }
 
   async insertMessage(params: {
@@ -83,25 +108,35 @@ export class ChatService {
   }
 
   async setConversationStatus(conversationId: string, tenantId: string, status: ConversationStatus): Promise<void> {
-    const { error } = await this.supabase
+    const { data, error } = await this.supabase
       .from('conversations')
       .update({ status })
       .eq('id', conversationId)
+      .eq('tenant_id', tenantId)
+      .select('agent_id')
+      .single()
     
     if (error) throw error
 
-    this.notifyStatusChanged(tenantId, conversationId, status, new Date().toISOString())
+    this.notifyStatusChanged(tenantId, conversationId, status, new Date().toISOString(), data?.agent_id)
   }
 
   private notifyNewMessage(tenantId: string, event: MessageNewEvent) {
     emitToTenant(tenantId, 'message:new', event)
   }
 
-  private notifyStatusChanged(tenantId: string, conversationId: string, status: ConversationStatus, lastMessageAt: string) {
+  private notifyStatusChanged(
+    tenantId: string, 
+    conversationId: string, 
+    status: ConversationStatus, 
+    lastMessageAt: string,
+    agentId?: string | null
+  ) {
     emitToTenant(tenantId, 'conversation:status_changed', {
       conversationId,
       status,
-      lastMessageAt
+      lastMessageAt,
+      agentId
     })
   }
 }

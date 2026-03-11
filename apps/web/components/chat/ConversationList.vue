@@ -28,8 +28,15 @@
 
     <div class="flex-1 overflow-y-auto">
       <!-- Loading -->
-      <div v-if="pending" class="p-4 space-y-3">
-        <USkeleton v-for="i in 4" :key="i" class="h-16 w-full" />
+      <div
+        v-if="pending"
+        class="p-4 space-y-3"
+      >
+        <USkeleton
+          v-for="i in 4"
+          :key="i"
+          class="h-16 w-full"
+        />
       </div>
 
       <div
@@ -70,9 +77,18 @@
                 {{ formatTime(conv.last_message_at) }}
               </span>
             </div>
-            <p class="text-sm text-slate-500 dark:text-slate-400 truncate">
-              {{ conv.last_message_preview || '...' }}
-            </p>
+            <div class="flex items-center justify-between">
+              <p class="text-sm text-slate-500 dark:text-slate-400 truncate flex-1 mr-2">
+                {{ conv.last_message_preview || '...' }}
+              </p>
+              <UIcon
+                v-if="conv.agent_id"
+                v-tooltip="conv.agent?.name || 'Atribuído'"
+                :name="conv.agent_id === currentAgentId ? 'i-heroicons-user-circle-20-solid' : 'i-heroicons-user-circle'"
+                class="w-4 h-4 shrink-0"
+                :class="conv.agent_id === currentAgentId ? 'text-primary-500' : 'text-slate-400'"
+              />
+            </div>
           </div>
           <span
             v-if="conv.unread_count > 0"
@@ -95,6 +111,7 @@ const props = defineProps<{
   pending?: boolean
   search: string
   filter: string
+  currentAgentId?: string
 }>()
 
 const emit = defineEmits(['update:search', 'update:filter', 'select'])
@@ -111,6 +128,7 @@ const filterLocal = computed({
 
 const filterButtons = [
   { label: 'Todas', value: 'all' },
+  { label: 'Minhas', value: 'mine' },
   { label: 'Abertas', value: 'open' },
   { label: 'Resolvidas', value: 'resolved' }
 ]
