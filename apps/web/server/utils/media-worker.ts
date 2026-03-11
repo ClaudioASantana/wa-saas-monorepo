@@ -35,7 +35,10 @@ export function createMediaWorker(supabaseUrl: string, supabaseServiceKey: strin
       const buffer = Buffer.from(await blob.arrayBuffer())
 
       // 3. Upload to Supabase Storage
-      const fileName = `${tenantId}/${messageId}.${mimeType.split('/')[1] || 'bin'}`
+      const now = new Date()
+      const year = now.getUTCFullYear()
+      const month = String(now.getUTCMonth() + 1).padStart(2, '0')
+      const fileName = `${tenantId}/${year}/${month}/${messageId}.${mimeType.split('/')[1] || 'bin'}`
       
       const { error: uploadError } = await supabase.storage
         .from('chat-media')

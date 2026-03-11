@@ -205,12 +205,21 @@ async function handleMessageUpsert(supabase: any, instanceId: string, messageDat
   if (insertError) throw insertError
 
   // 6. Emit Real-time event via Socket.IO
-  emitToTenant(conversation.tenant_id, 'message:new', {
+  emitToTenant(tenantId, 'message:new', {
     conversationId: conversation.id,
     messageId: messageId,
-    content,
+    type: msgType,
+    content: content,
     from: senderName,
-    timestamp: now,
-    type: msgType
+    timestamp: now
   })
+
+  // 7. Emit status changed (if applicable, e.g. new conversation or unread update)
+  emitToTenant(tenantId, 'conversation:status_changed', {
+    conversationId: conversation.id,
+    status: 'active', // Defaulting to active for now
+    lastMessageAt: now
+  })
+
+  logger.info({ messageId, conversationId: conversation.id, tenantId }, '[WebhookWorker] Message processed and events emitted')
 }

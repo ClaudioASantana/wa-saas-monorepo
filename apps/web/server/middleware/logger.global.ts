@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
       path: url,
       status,
       duration_ms: duration,
-      tenant_id: event.context.tenantId || null, // placeholder for future tenant detection
+      tenant_id: event.context.tenantId || event.node.req.headers['x-tenant-id'] || null,
     })
   })
 })
