@@ -8,6 +8,7 @@
       :selected-id="selectedConv?.id"
       :pending="convPending"
       :current-agent-id="currentAgent?.id"
+      :typing-agents="typingAgents"
       @select="selectConversation"
     />
 
@@ -19,7 +20,10 @@
       :sending="sending"
       :resolving="resolving"
       :current-agent-id="currentAgent?.id"
+      :active-agents="selectedConv ? getActiveAgents(selectedConv.id) : []"
+      :typing-agents="selectedConv ? getTypingAgents(selectedConv.id) : []"
       @send="sendMessage"
+      @typing="(isTyping) => selectedConv && emit('typing', { conversationId: selectedConv.id, isTyping })"
       @resolve="resolveConversation"
       @assign="assignConversation"
     />
@@ -35,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Conversation, Message, Agent } from '~/types/chat.types'
+import type { Conversation, Message, Agent, AgentPresenceEvent, AgentTypingEvent } from '~/types/chat.types'
 import ConversationList from '~/components/chat/ConversationList.vue'
 import ChatWindow from '~/components/chat/ChatWindow.vue'
 import ContactSidebar from '~/components/chat/ContactSidebar.vue'
@@ -43,12 +47,20 @@ import { useWebSocket } from '~/composables/useWebSocket'
 
 definePageMeta({ layout: 'workspace', middleware: ['auth'] })
 
-const { onEvent, offEvent } = useWebSocket()
+const { on, off, emit } = useWebSocket()
 const route = useRoute()
 const workspaceId = route.params.id as string
 const supabase = useSupabaseClient()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabaseRaw = supabase as any
+
+// ── Presence & Typing State ───────────────────────────────────────────────────
+// Maps conversationId -> Set of agent names or IDs
+const activeAgents = ref<Record<string, Set<string>>>({})
+const typingAgents = ref<Record<string, Set<string>>>({})
+
+const getActiveAgents = (conversationId: string) => Array.from(activeAgents.value[conversationId] || [])
+const getTypingAgents = (conversationId: string) => Array.from(typingAgents.value[conversationId] || [])
 
 // ── State ─────────────────────────────────────────────────────────────────────
 const filter = ref<'all' | 'open' | 'resolved' | 'mine'>('all')
@@ -107,7 +119,7 @@ const {
     if (!convId.value) return [] as Message[]
     const { data, error } = await supabase
       .from('messages')
-      .select('id, conversation_id, tenant_id, wa_message_id, direction, type, content, media_url, sender_name, created_at')
+      .select('id, conversation_id, tenant_id, wa_message_id, direction, type, content, media_url, sender_name, is_internal, created_at')
       .eq('conversation_id', convId.value)
       .order('created_at', { ascending: true })
     if (error) throw error
@@ -118,8 +130,16 @@ const {
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 const selectConversation = async (conv: Conversation) => {
+  // Leave previous room if any
+  if (selectedConv.value) {
+    emit('leave:conversation', selectedConv.value.id)
+  }
+
   selectedConv.value = conv
   
+  // Join new room
+  emit('join:conversation', conv.id)
+
   // Mark as read
   if (conv.unread_count > 0) {
     await supabaseRaw.from('conversations').update({ unread_count: 0 }).eq('id', conv.id)
@@ -159,17 +179,21 @@ const saveNotes = async (notes: string) => {
   }
 }
 
-const sendMessage = async (content: string) => {
+const sendMessage = async (text: string, isInternal: boolean = false) => {
   if (!selectedConv.value) return
   sending.value = true
   try {
-    await $fetch('/api/messages', {
+    await $fetch(`/api/messages`, {
       method: 'POST',
-      body: { conversation_id: selectedConv.value.id, message: content },
+      body: {
+        conversation_id: selectedConv.value.id,
+        message: text,
+        is_internal: isInternal
+      }
     })
     refreshMessages()
     refreshConv()
-  } catch (e: unknown) {
+  } catch (e: any) {
     const err = e as { statusMessage?: string }
     useToast().add({
       title: 'Erro ao enviar mensagem',
@@ -230,6 +254,7 @@ const handleIncomingMessage = (newMsg: {
   content: string
   from: string
   timestamp?: string
+  isInternal?: boolean
 }) => {
   if (selectedConv.value && newMsg.conversationId === selectedConv.value.id) {
     if (messages.value && !messages.value.find((m) => m.id === newMsg.messageId || m.wa_message_id === newMsg.messageId)) {
@@ -243,7 +268,8 @@ const handleIncomingMessage = (newMsg: {
         content: newMsg.content,
         sender_name: newMsg.from,
         created_at: newMsg.timestamp || new Date().toISOString(),
-        sent_at: newMsg.timestamp || new Date().toISOString()
+        sent_at: newMsg.timestamp || new Date().toISOString(),
+        is_internal: !!newMsg.isInternal
       }
       messages.value = [...messages.value, msg]
     }
@@ -275,10 +301,42 @@ const handleStatusChanged = (event: {
   refreshConv()
 }
 
+const handleAgentJoined = (payload: AgentPresenceEvent) => {
+  if (payload.conversationId === convId.value) {
+    if (!activeAgents.value[payload.conversationId]) {
+      activeAgents.value[payload.conversationId] = new Set()
+    }
+    activeAgents.value[payload.conversationId].add(payload.agentId)
+  }
+}
+
+const handleAgentLeft = (payload: AgentPresenceEvent) => {
+  if (activeAgents.value[payload.conversationId]) {
+    activeAgents.value[payload.conversationId].delete(payload.agentId)
+  }
+}
+
+const handleAgentTyping = (payload: AgentTypingEvent) => {
+  const { conversationId, agentId, isTyping } = payload
+  
+  if (!typingAgents.value[conversationId]) {
+    typingAgents.value[conversationId] = new Set()
+  }
+
+  if (isTyping) {
+    typingAgents.value[conversationId].add(agentId)
+  } else {
+    typingAgents.value[conversationId].delete(agentId)
+  }
+}
+
 onMounted(async () => {
-  onEvent('message:new', handleIncomingMessage)
-  onEvent('message:update', handleMessageUpdate)
-  onEvent('conversation:status_changed', handleStatusChanged)
+  on('message:new', handleIncomingMessage)
+  on('message:update', handleMessageUpdate)
+  on('conversation:status_changed', handleStatusChanged)
+  on('agent:joined', handleAgentJoined)
+  on('agent:left', handleAgentLeft)
+  on('agent:typing', handleAgentTyping)
 
   // Fetch current agent record
   if (user.value?.email) {
@@ -292,8 +350,14 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  offEvent('message:new')
-  offEvent('message:update')
-  offEvent('conversation:status_changed')
+  if (selectedConv.value) {
+    emit('leave:conversation', selectedConv.value.id)
+  }
+  off('message:new')
+  off('message:update')
+  off('conversation:status_changed')
+  off('agent:joined')
+  off('agent:left')
+  off('agent:typing')
 })
 </script>

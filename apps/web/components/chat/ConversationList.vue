@@ -78,7 +78,16 @@
               </span>
             </div>
             <div class="flex items-center justify-between">
-              <p class="text-sm text-slate-500 dark:text-slate-400 truncate flex-1 mr-2">
+              <p 
+                v-if="typingAgents[conv.id]?.size > 0"
+                class="text-sm text-primary-500 font-medium truncate flex-1 mr-2"
+              >
+                Digitando...
+              </p>
+              <p 
+                v-else
+                class="text-sm text-slate-500 dark:text-slate-400 truncate flex-1 mr-2"
+              >
                 {{ conv.last_message_preview || '...' }}
               </p>
               <UIcon
@@ -112,6 +121,7 @@ const props = defineProps<{
   search: string
   filter: string
   currentAgentId?: string
+  typingAgents: Record<string, Set<string>>
 }>()
 
 const emit = defineEmits(['update:search', 'update:filter', 'select'])

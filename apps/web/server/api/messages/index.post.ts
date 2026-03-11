@@ -4,8 +4,8 @@ const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:808
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { conversation_id, message } = body
-
+  const { conversation_id, message, is_internal } = body
+  
   if (!conversation_id || !message) {
     throw createError({ statusCode: 400, statusMessage: 'conversation_id and message are required' })
   }
@@ -34,35 +34,37 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Channel or contact not found' })
   }
 
-  // 2. Send via Evolution API
-  const evolutionUrl = `${EVOLUTION_API_URL}/message/sendText/${channel.provider_instance_id}`
-  
-  const evolutionRes = await fetch(evolutionUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': channel.provider_token
-    },
-    body: JSON.stringify({
-      number: contact.phone,
-      text: message
-    }),
-  })
+  // 2. Send via Evolution API (Only if NOT internal)
+  if (!is_internal) {
+    const evolutionUrl = `${EVOLUTION_API_URL}/message/sendText/${channel.provider_instance_id}`
+    
+    const evolutionRes = await fetch(evolutionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': channel.provider_token
+      },
+      body: JSON.stringify({
+        number: contact.phone,
+        text: message
+      }),
+    })
 
-  // 3. Save outgoing message to DB
-  if (!evolutionRes.ok) {
-    const errorText = await evolutionRes.text()
-    console.error(`[Message API] Evolution API error: ${evolutionRes.status} ${errorText}`)
-    throw createError({ statusCode: 502, statusMessage: `Evolution API error: ${errorText}` })
+    if (!evolutionRes.ok) {
+      const errorText = await evolutionRes.text()
+      console.error(`[Message API] Evolution API error: ${evolutionRes.status} ${errorText}`)
+      throw createError({ statusCode: 502, statusMessage: `Evolution API error: ${errorText}` })
+    }
   }
 
   const { data: msg, error: insertError } = await supabase.from('messages').insert({
     conversation_id,
     tenant_id: conv.tenant_id,
     direction: 'outbound',
-    type: 'text',
+    type: is_internal ? 'system' : 'text',
     content: message,
     sender_name: 'Agente',
+    is_internal: !!is_internal,
   }).select().single()
 
   if (insertError) {

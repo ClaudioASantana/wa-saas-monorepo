@@ -59,12 +59,17 @@ export const useWebSocket = () => {
     }
   }
 
-  const onEvent = (event: string, callback: (data: any) => void) => {
+  const on = (event: string, callback: (data: any) => void) => {
     if (!socket.value) return
     socket.value.on(event, callback)
   }
 
-  const offEvent = (event: string) => {
+  const emit = (event: string, data: any) => {
+    if (!socket.value) return
+    socket.value.emit(event, data)
+  }
+
+  const off = (event: string) => {
     if (!socket.value) return
     socket.value.off(event)
   }
@@ -94,7 +99,8 @@ export const useWebSocket = () => {
     isConnected,
     connect,
     disconnect,
-    onEvent,
-    offEvent
+    on,
+    off,
+    emit
   }
 }

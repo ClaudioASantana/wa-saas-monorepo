@@ -54,6 +54,17 @@ export class ChatService {
     
     if (error) throw error
 
+    // Log internally
+    await this.insertMessage({
+      conversationId,
+      tenantId: tenantId,
+      waMessageId: null,
+      direction: 'outbound',
+      type: 'system',
+      content: agentId ? `Conversa atribuída ao agente.` : 'Conversa liberada.',
+      isInternal: true
+    })
+
     // Fetch latest status for notification
     const { data: conv } = await this.supabase
       .from('conversations')
@@ -79,6 +90,7 @@ export class ChatService {
     content: string
     senderName?: string
     sentAt?: string
+    isInternal?: boolean
   }): Promise<Message> {
     const now = params.sentAt || new Date().toISOString()
     const { data, error } = await this.supabase.from('messages').insert({
@@ -90,6 +102,7 @@ export class ChatService {
       content: params.content,
       sender_name: params.senderName || null,
       sent_at: now,
+      is_internal: params.isInternal || false,
     }).select().single()
 
     if (error || !data) throw error || new Error('Failed to insert message')
@@ -101,7 +114,8 @@ export class ChatService {
       type: params.type,
       content: params.content,
       from: params.senderName || 'System',
-      timestamp: now
+      timestamp: now,
+      isInternal: params.isInternal
     })
 
     return data as unknown as Message
@@ -117,6 +131,17 @@ export class ChatService {
       .single()
     
     if (error) throw error
+
+    // Log internally
+    await this.insertMessage({
+      conversationId,
+      tenantId: tenantId,
+      waMessageId: null,
+      direction: 'outbound',
+      type: 'system',
+      content: `Status alterado para: ${status === 'open' ? 'Aberta' : 'Resolvida'}.`,
+      isInternal: true
+    })
 
     this.notifyStatusChanged(tenantId, conversationId, status, new Date().toISOString(), data?.agent_id)
   }

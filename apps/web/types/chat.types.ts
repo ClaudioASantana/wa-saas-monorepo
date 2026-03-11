@@ -1,5 +1,5 @@
 export type MessageDirection = 'inbound' | 'outbound'
-export type MessageType = 'text' | 'image' | 'audio' | 'video' | 'document' | 'vcard' | 'location'
+export type MessageType = 'text' | 'image' | 'audio' | 'video' | 'document' | 'vcard' | 'location' | 'system'
 export type ConversationStatus = 'open' | 'pending' | 'resolved' | 'closed'
 
 export interface Contact {
@@ -50,6 +50,7 @@ export interface Message {
   mime_type?: string | null
   sender_name?: string | null
   sent_at: string
+  is_internal: boolean
   created_at: string
 }
 
@@ -61,6 +62,7 @@ export interface MessageNewEvent {
   content: string
   from: string
   timestamp: string
+  isInternal?: boolean
 }
 
 export interface MessageUpdateEvent {
@@ -74,4 +76,15 @@ export interface ConversationStatusChangedEvent {
   status: ConversationStatus
   lastMessageAt: string
   agentId?: string | null
+}
+
+export interface AgentPresenceEvent {
+  agentId: string
+  conversationId: string
+}
+
+export interface AgentTypingEvent {
+  agentId: string
+  conversationId: string
+  isTyping: boolean
 }
