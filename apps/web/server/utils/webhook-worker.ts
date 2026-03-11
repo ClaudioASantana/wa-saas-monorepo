@@ -1,16 +1,18 @@
-import { Worker, Job } from 'bullmq'
+import type { Job } from 'bullmq'
+import { Worker } from 'bullmq'
 import { createClient } from '@supabase/supabase-js'
 import { redis } from './redis'
 import { logger } from './logger'
 import { mediaQueue } from './media-queue'
-import { emitToTenant } from './socket'
+import { ChatService } from '../services/chat.service'
+import { ContactService } from '../services/contact.service'
+import { EvolutionMessageUpsertDataSchema } from '../schemas/evolution.schema'
+import type { MessageType } from '../../types/chat.types'
 
-/**
- * Worker to process consolidated Evolution API webhooks.
- * Implements the core logic previously held in the webhook route.
- */
 export function createWebhookWorker(supabaseUrl: string, supabaseServiceKey: string) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  const chatService = new ChatService(supabase)
+  const contactService = new ContactService(supabase)
 
   const worker = new Worker(
     'webhook-processing',
@@ -21,29 +23,25 @@ export function createWebhookWorker(supabaseUrl: string, supabaseServiceKey: str
       logger.info({ event, instance, jobId: job.id }, '[WebhookWorker] Processing job')
 
       try {
-        // 1. Connection Status Update
         if (event === 'connection.update') {
           await handleConnectionUpdate(supabase, instance, data)
           return { status: 'connection_updated' }
         }
 
-        // 2. Message Upsert
         if (event === 'messages.upsert') {
-          await handleMessageUpsert(supabase, instance, data)
+          // Validate with Zod
+          const validatedData = EvolutionMessageUpsertDataSchema.parse(data)
+          await handleMessageUpsert(chatService, contactService, instance, validatedData, supabase)
           return { status: 'message_processed' }
         }
 
-        logger.debug({ event }, '[WebhookWorker] Skipping unhandled event')
         return { status: 'skipped', reason: 'unhandled_event' }
       } catch (error: any) {
-        logger.error({ error, event, jobId: job.id }, '[WebhookWorker] Error processing job')
-        throw error // Rethrow for BullMQ retry
+        logger.error({ error: error.message || error, event, jobId: job.id }, '[WebhookWorker] Error processing job')
+        throw error
       }
     },
-    { 
-      connection: redis as any,
-      concurrency: 5 // Process up to 5 webhooks in parallel per worker instance
-    }
+    { connection: redis as any, concurrency: 5 }
   )
 
   worker.on('failed', (job, err) => {
@@ -55,29 +53,23 @@ export function createWebhookWorker(supabaseUrl: string, supabaseServiceKey: str
 
 async function handleConnectionUpdate(supabase: any, instanceId: string, data: any) {
   const { state } = data
-  const statusMap: Record<string, string> = {
-    open: 'connected',
-    connecting: 'connecting',
-    close: 'disconnected',
-  }
-  
+  const statusMap: Record<string, string> = { open: 'connected', connecting: 'connecting', close: 'disconnected' }
   const dbStatus = statusMap[state]
   if (!dbStatus) return
 
-  const { data: channel } = await supabase
-    .from('channels')
-    .select('id')
-    .eq('provider_instance_id', instanceId)
-    .single()
-
+  const { data: channel } = await supabase.from('channels').select('id').eq('provider_instance_id', instanceId).single()
   if (channel) {
     await supabase.from('channels').update({ status: dbStatus }).eq('id', channel.id)
-    logger.debug({ instanceId, status: dbStatus }, '[WebhookWorker] Channel status updated')
   }
 }
 
-async function handleMessageUpsert(supabase: any, instanceId: string, messageData: any) {
-  // Logic from evolution.post.ts refactored for worker
+async function handleMessageUpsert(
+  chatService: ChatService, 
+  contactService: ContactService, 
+  instanceId: string, 
+  messageData: any,
+  supabase: any
+) {
   if (messageData.key?.remoteJid?.includes('@g.us')) return
   if (messageData.key?.fromMe) return
 
@@ -86,55 +78,28 @@ async function handleMessageUpsert(supabase: any, instanceId: string, messageDat
   const phone = remoteJid.includes('@lid') ? remoteJid : remoteJid.replace('@s.whatsapp.net', '')
   const senderName = messageData.pushName ?? (phone.includes('@') ? phone.split('@')[0] : phone)
 
-  if (!phone) throw new Error('Missing phone in message data')
-
-  // 1. Fetch Channel & Workspace
+  // 1. Fetch Channel
   const { data: channel, error: channelError } = await supabase
     .from('channels')
     .select('id, workspace_id, workspaces!inner(tenant_id)')
     .eq('provider_instance_id', instanceId)
     .single()
 
-  if (channelError || !channel) {
-    throw new Error(`Channel not found for instance ${instanceId}`)
-  }
+  if (channelError || !channel) throw new Error(`Channel not found for instance ${instanceId}`)
+  const tenantId = (channel.workspaces as any)?.tenant_id
 
-  const wsData = channel.workspaces as any
-  const tenantId = wsData?.tenant_id
-  if (!tenantId) throw new Error(`Tenant not found for channel ${instanceId}`)
+  // 2. Upsert Contact via Service
+  const contact = await contactService.upsertContact({
+    workspaceId: channel.workspace_id,
+    phone,
+    name: senderName,
+    tenantId,
+    remoteJid
+  })
 
-  // 2. Upsert Contact
-  let contactId: string | null = null
-  if (remoteJid.includes('@lid')) {
-    const { data: existingContact } = await supabase
-      .from('contacts')
-      .select('id')
-      .eq('workspace_id', channel.workspace_id)
-      .eq('name', senderName)
-      .not('phone', 'ilike', '%@lid')
-      .limit(1)
-      .maybeSingle()
-    
-    if (existingContact) contactId = existingContact.id
-  }
-
-  if (!contactId) {
-    const { data: contact, error: contactError } = await supabase
-      .from('contacts')
-      .upsert(
-        { workspace_id: channel.workspace_id, phone, name: senderName, tenant_id: tenantId },
-        { onConflict: 'workspace_id,phone' }
-      )
-      .select('id')
-      .single()
-
-    if (contactError || !contact) throw contactError || new Error('Failed to upsert contact')
-    contactId = contact.id
-  }
-
-  // 3. Extract Content & Handle Media intent
+  // 3. Extract Content & Handle Media
   const contentMsg = messageData.message
-  let msgType = 'text'
+  let msgType: MessageType = 'text'
   let content = ''
 
   if (contentMsg?.conversation) {
@@ -146,80 +111,38 @@ async function handleMessageUpsert(supabase: any, instanceId: string, messageDat
     msgType = isImage ? 'image' : 'audio'
     content = isImage ? (contentMsg.imageMessage.caption || '📷 Imagem') : '🎤 Áudio'
     
-    // Enqueue Media Processing
     const mediaId = isImage ? contentMsg.imageMessage.url : contentMsg.audioMessage.url
     await supabase.from('media_files').insert({
-      tenant_id: tenantId,
-      message_id: messageId,
-      media_id: mediaId || 'unknown',
-      mime_type: isImage ? 'image/jpeg' : 'audio/ogg',
-      status: 'pending'
+      tenant_id: tenantId, message_id: messageId, media_id: mediaId || 'unknown',
+      mime_type: isImage ? 'image/jpeg' : 'audio/ogg', status: 'pending'
     })
 
     await mediaQueue.add('process-media', {
-      tenantId,
-      messageId,
-      mediaId: mediaId || messageId,
-      mimeType: isImage ? 'image/jpeg' : 'audio/ogg',
-      evolutionInstanceId: instanceId,
+      tenantId, messageId, mediaId: mediaId || messageId,
+      mimeType: isImage ? 'image/jpeg' : 'audio/ogg', evolutionInstanceId: instanceId,
     })
   } else if (contentMsg?.documentMessage) {
     msgType = 'document'
     content = `📎 ${contentMsg.documentMessage.fileName || 'Documento'}`
   }
 
-  const now = new Date().toISOString()
+  // 4. Upsert Conversation via Service
+  const conversation = await chatService.upsertConversation({
+    workspaceId: channel.workspace_id,
+    channelId: channel.id,
+    contactId: contact.id,
+    tenantId,
+    lastMessagePreview: content
+  })
 
-  // 4. Upsert Conversation
-  const { data: conversation, error: convError } = await supabase
-    .from('conversations')
-    .upsert(
-      {
-        workspace_id: channel.workspace_id,
-        channel_id: channel.id,
-        contact_id: contactId,
-        tenant_id: tenantId,
-        last_message_at: now,
-        last_message_preview: content.substring(0, 100),
-        status: 'open',
-      },
-      { onConflict: 'channel_id,contact_id' }
-    )
-    .select('id, tenant_id')
-    .single()
-
-  if (convError || !conversation) throw convError || new Error('Failed to upsert conversation')
-
-  // 5. Insert Message
-  const { error: insertError } = await supabase.from('messages').insert({
-    conversation_id: conversation.id,
-    tenant_id: conversation.tenant_id,
-    wa_message_id: messageId ?? null,
+  // 5. Insert Message via Service
+  await chatService.insertMessage({
+    conversationId: conversation.id,
+    tenantId,
+    waMessageId: messageId,
     direction: 'inbound',
     type: msgType,
     content,
-    sender_name: senderName,
-    sent_at: now,
+    senderName
   })
-
-  if (insertError) throw insertError
-
-  // 6. Emit Real-time event via Socket.IO
-  emitToTenant(tenantId, 'message:new', {
-    conversationId: conversation.id,
-    messageId: messageId,
-    type: msgType,
-    content: content,
-    from: senderName,
-    timestamp: now
-  })
-
-  // 7. Emit status changed (if applicable, e.g. new conversation or unread update)
-  emitToTenant(tenantId, 'conversation:status_changed', {
-    conversationId: conversation.id,
-    status: 'active', // Defaulting to active for now
-    lastMessageAt: now
-  })
-
-  logger.info({ messageId, conversationId: conversation.id, tenantId }, '[WebhookWorker] Message processed and events emitted')
 }

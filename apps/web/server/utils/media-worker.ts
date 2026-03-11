@@ -1,86 +1,109 @@
-import { Worker } from 'bullmq'
+import { Worker, Job } from 'bullmq'
 import { createClient } from '@supabase/supabase-js'
 import { redis } from './redis'
 import { logger } from './logger'
+import { ChatService } from '../services/chat.service'
 import { emitToTenant } from './socket'
 
-/**
- * Worker to process media uploads from Evolution API to Supabase Storage.
- */
 export function createMediaWorker(supabaseUrl: string, supabaseServiceKey: string) {
-  const worker = new Worker('media-uploads', async (job) => {
-    const { tenantId, messageId, mediaId, mimeType, evolutionInstanceId } = job.data
-    
-    logger.info({ messageId, mediaId, tenantId }, '[MediaWorker] Processing job')
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  const chatService = new ChatService(supabase)
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-    try {
-      // 1. Mark as processing
-      await supabase.from('media_files').update({ status: 'processing' }).eq('message_id', messageId)
-
-      // 2. Obtain media from Evolution API
-      const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080'
-      const EVOLUTION_GLOBAL_API_KEY = process.env.EVOLUTION_GLOBAL_API_KEY || 'B6D711FCDE4D4FD5936544120E713976'
+  const worker = new Worker(
+    'media-processing',
+    async (job: Job) => {
+      const { tenantId, messageId, mediaId, mimeType, evolutionInstanceId } = job.data
       
-      const response = await fetch(`${EVOLUTION_API_URL}/instance/fetchMedia/${evolutionInstanceId}?mediaId=${mediaId}`, {
-        headers: { 'apikey': EVOLUTION_GLOBAL_API_KEY }
-      })
+      logger.info({ messageId, tenantId }, '[MediaWorker] Processing media')
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch media from Evolution: ${response.statusText}`)
+      try {
+        // 1. Get media from Evolution API (using environment variables)
+        const evolutionBaseUrl = process.env.EVOLUTION_API_URL
+        const evolutionApiKey = process.env.EVOLUTION_API_KEY
+        
+        if (!evolutionBaseUrl || !evolutionApiKey) {
+          throw new Error('Evolution API credentials missing')
+        }
+
+        const response = await fetch(`${evolutionBaseUrl}/chat/getBase64FromMediaMessage/${evolutionInstanceId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': evolutionApiKey
+          },
+          body: JSON.stringify({
+            message: {
+              key: { id: messageId },
+              url: mediaId,
+              mimetype: mimeType
+            }
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch media from Evolution: ${response.statusText}`)
+        }
+
+        const result: any = await response.json()
+        const base64Data = result.base64 || result.data?.base64
+        
+        if (!base64Data) {
+          throw new Error('No base64 data received from Evolution')
+        }
+
+        const buffer = Buffer.from(base64Data, 'base64')
+
+        // 2. Upload to Supabase Storage
+        const fileExt = mimeType.split('/')[1] || 'bin'
+        const now = new Date()
+        const year = now.getFullYear()
+        const month = String(now.getMonth() + 1).padStart(2, '0')
+        const fileName = `${tenantId}/${year}/${month}/${messageId}.${fileExt}`
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('media')
+          .upload(fileName, buffer, {
+            contentType: mimeType,
+            upsert: true
+          })
+
+        if (uploadError) throw uploadError
+
+        // 3. Get Public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('media')
+          .getPublicUrl(fileName)
+
+        // 4. Update Message & Notify via ChatService
+        const { data: message } = await supabase
+          .from('messages')
+          .update({ media_url: publicUrl, status: 'delivered' })
+          .eq('wa_message_id', messageId)
+          .select('id, conversation_id')
+          .single()
+
+        if (message) {
+          emitToTenant(tenantId, 'message:update', {
+            messageId: messageId,
+            mediaUrl: publicUrl,
+            status: 'delivered'
+          })
+        }
+
+        // 5. Update media_files record
+        await supabase.from('media_files')
+          .update({ status: 'completed', storage_path: fileName })
+          .eq('message_id', messageId)
+
+        return { status: 'success', url: publicUrl }
+      } catch (error: any) {
+        logger.error({ error: error.message || error, messageId }, '[MediaWorker] Error processing media')
+        await supabase.from('media_files').update({ status: 'failed' }).eq('message_id', messageId)
+        throw error
       }
-
-      const blob = await response.blob()
-      const buffer = Buffer.from(await blob.arrayBuffer())
-
-      // 3. Upload to Supabase Storage
-      const now = new Date()
-      const year = now.getUTCFullYear()
-      const month = String(now.getUTCMonth() + 1).padStart(2, '0')
-      const fileName = `${tenantId}/${year}/${month}/${messageId}.${mimeType.split('/')[1] || 'bin'}`
-      
-      const { error: uploadError } = await supabase.storage
-        .from('chat-media')
-        .upload(fileName, buffer, { contentType: mimeType, upsert: true })
-
-      if (uploadError) throw uploadError
-
-      const { data: { publicUrl } } = supabase.storage.from('chat-media').getPublicUrl(fileName)
-
-      // 4. Update database
-      await supabase.from('media_files').update({ 
-        status: 'uploaded', 
-        storage_url: publicUrl,
-        updated_at: new Date().toISOString()
-      }).eq('message_id', messageId)
-
-      // 5. Update the message record with the new URL
-      await supabase.from('messages').update({ media_url: publicUrl }).eq('wa_message_id', messageId)
-
-      // 6. Emit Real-time event via Socket.IO
-      emitToTenant(tenantId, 'message:update', {
-        messageId: messageId,
-        mediaUrl: publicUrl,
-        status: 'uploaded'
-      })
-
-      logger.info({ messageId, publicUrl }, '[MediaWorker] Media processed successfully')
-      return { success: true, url: publicUrl }
-
-    } catch (err: any) {
-      logger.error({ error: err.message, messageId }, '[MediaWorker] Job failed')
-      await supabase.from('media_files').update({ 
-        status: 'failed', 
-        error: err.message,
-        updated_at: new Date().toISOString()
-      }).eq('message_id', messageId)
-      throw err
-    }
-  }, {
-    connection: redis as any,
-    concurrency: 5,
-  })
+    },
+    { connection: redis as any, concurrency: 2 }
+  )
 
   worker.on('failed', (job, err) => {
     logger.error({ id: job?.id, error: err.message }, '[MediaWorker] Worker error')
