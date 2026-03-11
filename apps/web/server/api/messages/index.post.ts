@@ -27,7 +27,6 @@ export default defineEventHandler(async (event) => {
 
   // @ts-expect-error - Supabase join types
   const channel = Array.isArray(conv.channel_data) ? conv.channel_data[0] : conv.channel_data
-  // @ts-expect-error - Supabase join types
   const contact = Array.isArray(conv.contact) ? conv.contact[0] : conv.contact
 
   if (!channel || !contact) {
