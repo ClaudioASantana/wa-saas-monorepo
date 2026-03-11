@@ -16,19 +16,27 @@ export default defineEventHandler(async (event) => {
   // 1. Get conversation + channel + contact
   const { data: conv } = await supabase
     .from('conversations')
-    .select('id, tenant_id, contact:contacts(phone), channel:channels(provider_instance_id, provider_token)')
+    .select('id, tenant_id, contact:contacts(phone), channel_id, channel_data:channels(provider_instance_id, provider_token)')
     .eq('id', conversation_id)
     .single()
 
-  if (!conv) throw createError({ statusCode: 404, statusMessage: 'Conversation not found' })
+  if (!conv) {
+    console.error(`[Message API] Conversation ${conversation_id} not found`)
+    throw createError({ statusCode: 404, statusMessage: 'Conversation not found' })
+  }
 
-  const channel = Array.isArray(conv.channel) ? conv.channel[0] : conv.channel
+  // @ts-ignore
+  const channel = Array.isArray(conv.channel_data) ? conv.channel_data[0] : conv.channel_data
+  // @ts-ignore
   const contact = Array.isArray(conv.contact) ? conv.contact[0] : conv.contact
 
-  if (!channel || !contact) throw createError({ statusCode: 404, statusMessage: 'Channel or contact not found' })
+  if (!channel || !contact) {
+    throw createError({ statusCode: 404, statusMessage: 'Channel or contact not found' })
+  }
 
   // 2. Send via Evolution API
   const evolutionUrl = `${EVOLUTION_API_URL}/message/sendText/${channel.provider_instance_id}`
+  
   const evolutionRes = await fetch(evolutionUrl, {
     method: 'POST',
     headers: {
@@ -42,26 +50,25 @@ export default defineEventHandler(async (event) => {
   })
 
   // 3. Save outgoing message to DB
-  let errorText = ''
   if (!evolutionRes.ok) {
-    // If it fails, we should still probably log it or throw
-    errorText = await evolutionRes.text()
-    console.error(`Evolution API error: ${errorText}`)
-  }
-  
-  // NOTE: even if sending fails, maybe we don't save or we save as failed. For now, if not ok, we throw:
-  if (!evolutionRes.ok) {
-     throw createError({ statusCode: 502, statusMessage: `Evolution API error: ${errorText}` })
+    const errorText = await evolutionRes.text()
+    console.error(`[Message API] Evolution API error: ${evolutionRes.status} ${errorText}`)
+    throw createError({ statusCode: 502, statusMessage: `Evolution API error: ${errorText}` })
   }
 
-  const { data: msg } = await supabase.from('messages').insert({
+  const { data: msg, error: insertError } = await supabase.from('messages').insert({
     conversation_id,
     tenant_id: conv.tenant_id,
-    direction: 'outgoing',
+    direction: 'outbound',
     type: 'text',
     content: message,
     sender_name: 'Agente',
   }).select().single()
+
+  if (insertError) {
+    console.error(`[Message API] DB Insert Error:`, insertError)
+    throw createError({ statusCode: 500, statusMessage: `DB Insert Error: ${insertError.message}` })
+  }
 
   // 4. Update conversation last_message_at
   await supabase.from('conversations').update({

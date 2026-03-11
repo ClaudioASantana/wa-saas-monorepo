@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
     return { ok: true, skipped: 'unhandled event type' }
   }
 
-  const messageData = payload.data?.message
+  const messageData = payload.data
   if (!messageData) {
     return { ok: false, error: 'Missing message data' }
   }
@@ -78,8 +78,15 @@ export default defineEventHandler(async (event) => {
   // ── Process incoming message ───────────────────────────────────────────────
 
   const messageId = messageData.key?.id
-  const phone = messageData.key?.remoteJid?.replace('@s.whatsapp.net', '') ?? ''
-  const senderName = messageData.pushName ?? phone
+  const remoteJid = messageData.key?.remoteJid ?? ''
+  
+  // Se for @lid, mantemos o JID completo para envio posterior. 
+  // Se for @s.whatsapp.net, extraímos apenas o número.
+  const phone = remoteJid.includes('@lid') 
+    ? remoteJid 
+    : remoteJid.replace('@s.whatsapp.net', '')
+
+  const senderName = messageData.pushName ?? (phone.includes('@') ? phone.split('@')[0] : phone)
 
   if (!phone) {
     return { ok: false, error: 'Missing phone' }
@@ -88,7 +95,7 @@ export default defineEventHandler(async (event) => {
   // 1. Look up channel by instanceId and its workspace's tenant_id
   const { data: channel } = await supabase
     .from('channels')
-    .select('id, workspace_id, workspaces(tenant_id)')
+    .select('id, workspace_id, workspaces!inner(tenant_id)')
     .eq('provider_instance_id', instanceId)
     .single()
 
@@ -97,9 +104,9 @@ export default defineEventHandler(async (event) => {
     return { ok: false, error: 'Channel not found' }
   }
 
-  // Workaround since supabase relation includes an array if not singular, but we know workspace is 1-1 to channel
+  // Handle relation data correctly
   const wsData = channel.workspaces as any
-  const tenantId = Array.isArray(wsData) ? wsData[0]?.tenant_id : wsData?.tenant_id
+  const tenantId = wsData?.tenant_id || (Array.isArray(wsData) ? wsData[0]?.tenant_id : null)
 
   if (!tenantId) {
     console.warn('[Evolution Webhook] Tenant not found for channel:', instanceId)
@@ -120,17 +127,40 @@ export default defineEventHandler(async (event) => {
   }
 
   // 3. Upsert contact (workspace_id + phone as unique key)
-  const { data: contact } = await supabase
-    .from('contacts')
-    .upsert(
-      { workspace_id: channel.workspace_id, phone, name: senderName, tenant_id: tenantId },
-      { onConflict: 'workspace_id,phone' }
-    )
-    .select('id')
-    .single()
+  // Se for LID, tentamos primeiro achar um contato pelo nome no mesmo workspace
+  let contactId: string | null = null
 
-  if (!contact) {
-    return { ok: false, error: 'Failed to upsert contact' }
+  if (remoteJid.includes('@lid')) {
+    const { data: existingContact } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('workspace_id', channel.workspace_id)
+      .eq('name', senderName)
+      .not('phone', 'ilike', '%@lid') // preferimos o que não é LID
+      .limit(1)
+      .single()
+    
+    if (existingContact) {
+      contactId = existingContact.id
+      console.log(`[Evolution Webhook] Mapped LID message to existing contact: ${senderName} (${contactId})`)
+    }
+  }
+
+  if (!contactId) {
+    const { data: contact, error: upsertError } = await supabase
+      .from('contacts')
+      .upsert(
+        { workspace_id: channel.workspace_id, phone, name: senderName, tenant_id: tenantId },
+        { onConflict: 'workspace_id,phone' }
+      )
+      .select('id')
+      .single()
+
+    if (upsertError || !contact) {
+      console.error('[Evolution Webhook] Failed to upsert contact:', upsertError)
+      return { ok: false, error: 'Failed to upsert contact' }
+    }
+    contactId = contact.id
   }
 
   // 4. Extract message content (Evolution API structure)
@@ -146,18 +176,65 @@ export default defineEventHandler(async (event) => {
   } else if (contentMsg?.imageMessage) {
     msgType = 'image'
     content = contentMsg.imageMessage.caption || '📷 Imagem'
-    // Media handling will require downloading or a different URL logic since evolution sends base64/mimetype if requested
+    // Evolution v2 often puts base64 at payload.data.base64 or in the message itself
+    const base64Data = messageData.base64 || contentMsg.imageMessage.base64 || payload.data?.base64
+    
+    if (!base64Data) {
+      console.log('[Evolution Webhook] Full payload data keys:', Object.keys(payload.data || {}))
+      console.log('[Evolution Webhook] Message data keys:', Object.keys(messageData || {}))
+    }
+    
+    if (base64Data) {
+      try {
+        const fileName = `${tenantId}/${messageId}.jpg`
+        const buffer = Buffer.from(base64Data, 'base64')
+        console.log(`[Evolution Webhook] Uploading image: ${fileName} (${buffer.length} bytes)`)
+        
+        const { error: uploadError } = await supabase.storage
+          .from('chat-media')
+          .upload(fileName, buffer, { contentType: 'image/jpeg', upsert: true })
+        
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage.from('chat-media').getPublicUrl(fileName)
+          mediaUrl = publicUrl
+          console.log(`[Evolution Webhook] Image uploaded: ${mediaUrl}`)
+        } else {
+          console.error('[Evolution Webhook] Image upload error:', uploadError)
+        }
+      } catch (e) {
+        console.error('[Evolution Webhook] Buffer error:', e)
+      }
+    } else {
+      console.warn('[Evolution Webhook] Image message received but no base64 found. Make sure "Always Send Media Base64" is enabled in instance settings.')
+    }
   } else if (contentMsg?.audioMessage) {
     msgType = 'audio'
     content = '🎤 Áudio'
-  } else if (contentMsg?.documentMessage) {
+    const base64Data = messageData.base64 || contentMsg.audioMessage.base64 || payload.data?.base64
+
+    if (base64Data) {
+      try {
+        const fileName = `${tenantId}/${messageId}.ogg`
+        const buffer = Buffer.from(base64Data, 'base64')
+        console.log(`[Evolution Webhook] Uploading audio: ${fileName} (${buffer.length} bytes)`)
+
+        const { error: uploadError } = await supabase.storage
+          .from('chat-media')
+          .upload(fileName, buffer, { contentType: 'audio/ogg', upsert: true })
+        
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage.from('chat-media').getPublicUrl(fileName)
+          mediaUrl = publicUrl
+          console.log(`[Evolution Webhook] Audio uploaded: ${mediaUrl}`)
+        }
+      } catch (e) {
+        console.error('[Evolution Webhook] Audio buffer error:', e)
+      }
+    }
+  }
+ else if (contentMsg?.documentMessage) {
     msgType = 'document'
     content = `📎 ${contentMsg.documentMessage.fileName || 'Documento'}`
-  }
-
-  // Use the mediaUrl to stop lints
-  if (mediaUrl) {
-    console.log('[MediaURL placeholder]', mediaUrl)
   }
 
   const now = new Date().toISOString()
@@ -169,7 +246,7 @@ export default defineEventHandler(async (event) => {
       {
         workspace_id: channel.workspace_id,
         channel_id: channel.id,
-        contact_id: contact.id,
+        contact_id: contactId,
         tenant_id: tenantId,
         last_message_at: now,
         last_message_preview: content.substring(0, 100),
@@ -188,19 +265,22 @@ export default defineEventHandler(async (event) => {
     return { ok: false, error: 'Failed to upsert conversation' }
   }
 
-  // Update unread_count and last message cache (when conversation already existed)
+  // Update conversation status and last message (when conversation already existed)
   await supabase
     .from('conversations')
     .update({
       last_message_at: now,
       last_message_preview: content.substring(0, 100),
-      unread_count: supabase.rpc('increment', { row_id: conversation.id }) as unknown as number,
+      // For now, just reset or maintain unread. 
+      // Correct increment requires a separate RPC call or DB trigger.
       status: 'open',
     })
     .eq('id', conversation.id)
 
   // 6. Insert message (uses 'content' and 'inbound' direction)
-  await supabase.from('messages').insert({
+  console.log(`[Evolution Webhook] Inserting message: type=${msgType}, content="${content}", mediaUrl=${mediaUrl}`)
+  
+  const { error: insertError } = await supabase.from('messages').insert({
     conversation_id: conversation.id,
     tenant_id: conversation.tenant_id,
     wa_message_id: messageId ?? null,
@@ -212,6 +292,10 @@ export default defineEventHandler(async (event) => {
     sent_at: now,
   })
 
-  console.log(`[ZAPI Webhook] ✅ Message from ${phone} saved in conversation ${conversation.id}`)
+  if (insertError) {
+    console.error('[Evolution Webhook] Error inserting message:', insertError)
+  }
+
+  console.log(`[Evolution Webhook] ✅ Message from ${phone} processed`)
   return { ok: true }
 })

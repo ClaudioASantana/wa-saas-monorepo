@@ -161,12 +161,12 @@
               v-for="msg in messages"
               :key="msg.id"
               class="flex"
-              :class="msg.direction === 'outgoing' ? 'justify-end' : 'justify-start'"
+              :class="msg.direction === 'outbound' ? 'justify-end' : 'justify-start'"
             >
               <div
                 class="rounded-lg p-3 max-w-xs lg:max-w-md shadow-sm"
                 :class="
-                  msg.direction === 'outgoing'
+                  msg.direction === 'outbound'
                     ? 'bg-primary-500 text-white rounded-tr-none'
                     : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-tl-none'
                 "
@@ -185,7 +185,7 @@
                   class="rounded-md max-w-full mb-1"
                 />
                 <!-- Text -->
-                <p class="text-sm whitespace-pre-wrap break-words">{{ msg.body }}</p>
+                <p class="text-sm whitespace-pre-wrap break-words">{{ msg.body || msg.content }}</p>
                 <span class="text-[10px] mt-1 block text-right opacity-60">{{
                   formatTime(msg.created_at)
                 }}</span>
@@ -247,8 +247,26 @@
             </div>
           </div>
           <div>
-            <p class="text-xs font-medium text-slate-500 mb-2">Anotações</p>
-            <UTextarea placeholder="Notas sobre este contato..." :rows="4" />
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-medium text-slate-500">Anotações</p>
+              <UButton
+                v-if="currentNotes !== selectedConv.contact?.notes"
+                size="xs"
+                variant="ghost"
+                color="primary"
+                :loading="savingNotes"
+                @click="saveNotes"
+              >
+                Salvar
+              </UButton>
+            </div>
+            <UTextarea
+              v-model="currentNotes"
+              placeholder="Notas sobre este contato..."
+              :rows="4"
+              class="text-sm"
+              :disabled="savingNotes"
+            />
           </div>
         </template>
         <div v-else class="flex flex-col items-center justify-center h-full text-center">
@@ -276,6 +294,7 @@ interface Contact {
   id: string
   name: string | null
   phone: string
+  notes: string | null
 }
 interface Conversation {
   id: string
@@ -304,6 +323,8 @@ const selectedConv = ref<Conversation | null>(null)
 const newMessage = ref('')
 const sending = ref(false)
 const resolving = ref(false)
+const savingNotes = ref(false)
+const currentNotes = ref('')
 const messagesContainer = ref<HTMLElement | null>(null)
 
 // ── Conversations ─────────────────────────────────────────────────────────────
@@ -315,7 +336,7 @@ const {
   const { data, error } = await supabase
     .from('conversations')
     .select(
-      'id, status, last_message_at, last_message_preview, unread_count, created_at, contact:contacts(id, name, phone)'
+      'id, status, last_message_at, last_message_preview, unread_count, created_at, contact:contacts(id, name, phone, notes)'
     )
     .eq('workspace_id', workspaceId)
     .order('last_message_at', { ascending: false })
@@ -368,10 +389,44 @@ watch(messages, async () => {
 // ── Actions ───────────────────────────────────────────────────────────────────
 const selectConversation = async (conv: Conversation) => {
   selectedConv.value = conv
+  currentNotes.value = conv.contact?.notes || ''
+  
   // Mark as read
   if (conv.unread_count > 0) {
     await supabaseRaw.from('conversations').update({ unread_count: 0 }).eq('id', conv.id)
     refreshConv()
+  }
+}
+
+const saveNotes = async () => {
+  if (!selectedConv.value?.contact?.id) return
+  savingNotes.value = true
+  try {
+    const { error } = await supabase
+      .from('contacts')
+      .update({ notes: currentNotes.value })
+      .eq('id', selectedConv.value.contact.id)
+    
+    if (error) throw error
+    
+    // Update local state
+    if (selectedConv.value.contact) {
+      selectedConv.value.contact.notes = currentNotes.value
+    }
+    
+    useToast().add({
+      title: 'Anotações salvas!',
+      icon: 'i-heroicons-check-circle',
+      color: 'green'
+    })
+  } catch (e: any) {
+    useToast().add({
+      title: 'Erro ao salvar notas',
+      description: e.message,
+      color: 'red'
+    })
+  } finally {
+    savingNotes.value = false
   }
 }
 

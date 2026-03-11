@@ -52,8 +52,13 @@
         class="h-16 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur z-10 shrink-0"
       >
         <div class="flex items-center space-x-4">
-          <!-- TODO: Evolution API Connection Status Widget -->
-          <UBadge color="red" variant="subtle" size="sm">WhatsApp Desconectado</UBadge>
+          <UBadge 
+            :color="hasConnectedChannel ? 'green' : 'red'" 
+            variant="subtle" 
+            size="sm"
+          >
+            WhatsApp {{ hasConnectedChannel ? 'Conectado' : 'Desconectado' }}
+          </UBadge>
         </div>
         <div class="flex items-center space-x-3">
           <span class="text-sm font-medium text-slate-700 dark:text-slate-300">{{
@@ -84,6 +89,7 @@ const { user, logout } = useAuth()
 const supabase = useSupabaseClient()
 
 const workspaceName = ref('Carregando...')
+const hasConnectedChannel = ref(false)
 
 // Busca nome do banco para a UI do menu
 useAsyncData(`workspace-name-${workspaceId}`, async () => {
@@ -93,6 +99,18 @@ useAsyncData(`workspace-name-${workspaceId}`, async () => {
     workspaceName.value = data.name
   }
   return data
+})
+
+// Verifica se há canais conectados
+useAsyncData(`workspace-status-${workspaceId}`, async () => {
+  const { count } = await supabase
+    .from('channels')
+    .select('*', { count: 'exact', head: true })
+    .eq('workspace_id', workspaceId)
+    .eq('status', 'connected')
+
+  hasConnectedChannel.value = (count ?? 0) > 0
+  return count
 })
 
 const links = [

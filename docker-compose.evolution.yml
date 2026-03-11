@@ -1,41 +1,43 @@
-version: '3.3'
-
 services:
   evolution-api:
-    image: atendai/evolution-api:v2.2.1
+    build:
+      context: .
+      dockerfile: Dockerfile.evolution
     container_name: evolution-api
     restart: always
     ports:
       - '8080:8080'
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
     environment:
-      - SERVER_URL=http://localhost:8080 # Url that will be used to generate webhooks and qr codes
-      - DANGEROUS_FUNCTIONS=true # Enable dangerous functions like delete messages
-      - CORS_ORIGIN=* # allow all origins
+      - SERVER_URL=http://localhost:8080
+      - DANGEROUS_FUNCTIONS=true
+      - CORS_ORIGIN=*
       - CORS_METHODS=POST,GET,PUT,DELETE
       - CORS_CREDENTIALS=true
-      - LOG_LEVEL=ERROR,WARN,DEBUG,INFO,LOG,VERBOSE,DARK,WEBHOOKS # Set log level
+      - LOG_LEVEL=ERROR,WARN,DEBUG,INFO,LOG,VERBOSE,DARK,WEBHOOKS
 
-      # Authentication for Evolution API Panel/Requests
+      # Authentication
       - AUTHENTICATION_TYPE=apikey
-      - AUTHENTICATION_API_KEY=B6D711FCDE4D4FD5936544120E713976 # CHANGE THIS IN PRODUCTION
+      - AUTHENTICATION_API_KEY=B6D711FCDE4D4FD5936544120E713976
       - AUTHENTICATION_EXPOSE_IN_SERVER=true
 
+      # Database
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgresql://postgres:postgres@postgres:5432/evolution?schema=public&connection_limit=5&pool_timeout=0
       - DATABASE_CONNECTION_CLIENT_NAME=evolution_api
 
-      # Redis is strongly recommended for caching instances and avoiding rate limit
+      # Redis
       - CACHE_REDIS_ENABLED=true
       - CACHE_REDIS_URI=redis://redis:6379/6
+      - CACHE_REDIS_TTL=604800
 
       # Webhooks
       - WEBHOOK_GLOBAL_ENABLED=false
       - WEBHOOK_EVENTS_ERRORS=true
       - WEBHOOK_EVENTS_ERRORS_WEBHOOK=
 
-      # RabbitMQ (Not needed for simple setups)
+      # RabbitMQ / WebSocket
       - RABBITMQ_ENABLED=false
       - SQID_ENABLED=false
       - WEBSOCKET_ENABLED=true
@@ -45,11 +47,20 @@ services:
       - QRCODE_LIMIT=30
       - QRCODE_COLOR=#198754
 
+      # Baileys
+      - DEL_INSTANCE=false
+      # VERSION forces the WA Web protocol version to avoid 405 errors from WhatsApp servers
+      # Format uses dots, maps to [2, 3000, N] internally in the Evolution API
+      - VERSION=2.3000.1033846690
+
     volumes:
       - evolution_instances:/evolution/instances
       - evolution_store:/evolution/store
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   postgres:
     image: postgres:15-alpine
@@ -60,9 +71,15 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=evolution
     ports:
-      - '5433:5432' # use 5433 on host in case 5432 is taken by supabase local
+      - '5433:5432'
     volumes:
       - evolution_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d evolution']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   redis:
     image: redis:alpine
