@@ -25,9 +25,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Conversation not found' })
   }
 
-  // @ts-ignore
+  // @ts-expect-error - Supabase join types
   const channel = Array.isArray(conv.channel_data) ? conv.channel_data[0] : conv.channel_data
-  // @ts-ignore
+  // @ts-expect-error - Supabase join types
   const contact = Array.isArray(conv.contact) ? conv.contact[0] : conv.contact
 
   if (!channel || !contact) {
@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
     conversation_id,
     tenant_id: conv.tenant_id,
     direction: 'outbound',
-    type: is_internal ? 'system' : 'text',
+    type: 'text', // Internal notes are still text or media, but with is_internal=true
     content: message,
     sender_name: 'Agente',
     is_internal: !!is_internal,

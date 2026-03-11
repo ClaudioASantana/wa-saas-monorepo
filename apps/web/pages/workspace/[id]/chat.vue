@@ -208,14 +208,24 @@ const sendMessage = async (text: string, isInternal: boolean = false) => {
 const resolveConversation = async () => {
   if (!selectedConv.value) return
   resolving.value = true
-  await supabaseRaw
-    .from('conversations')
-    .update({ status: 'resolved' })
-    .eq('id', selectedConv.value.id)
-  selectedConv.value.status = 'resolved'
-  resolving.value = false
-  useToast().add({ title: 'Conversa resolvida!', icon: 'i-heroicons-check-circle', color: 'green' })
-  refreshConv()
+  try {
+    await $fetch('/api/chat/resolve', {
+      method: 'POST',
+      body: { conversationId: selectedConv.value.id }
+    })
+    
+    selectedConv.value.status = 'resolved'
+    useToast().add({ title: 'Conversa resolvida!', icon: 'i-heroicons-check-circle', color: 'green' })
+    refreshConv()
+  } catch (e: any) {
+    useToast().add({
+      title: 'Erro ao resolver conversa',
+      description: e.message,
+      color: 'red'
+    })
+  } finally {
+    resolving.value = false
+  }
 }
 
 const assignConversation = async (agentId: string | null) => {

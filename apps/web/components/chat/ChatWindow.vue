@@ -118,14 +118,20 @@
         ref="container"
         class="flex-1 overflow-y-auto p-6 space-y-3"
       >
-        <div v-if="pending" class="flex justify-center py-8">
+        <div
+          v-if="pending"
+          class="flex justify-center py-8"
+        >
           <UIcon
             name="i-heroicons-arrow-path"
             class="w-6 h-6 text-primary-400 animate-spin"
           />
         </div>
         <template v-else>
-          <div v-if="!messages.length" class="text-center text-slate-400 text-sm py-8">
+          <div
+            v-if="!messages.length"
+            class="text-center text-slate-400 text-sm py-8"
+          >
             Nenhuma mensagem ainda nesta conversa.
           </div>
           <MessageItem
@@ -173,16 +179,84 @@
               <UIcon name="i-heroicons-pencil-square" class="w-4 h-4 text-amber-600" />
               <span class="text-xs font-medium text-amber-700 dark:text-amber-400">Nota Interna (não enviada ao cliente)</span>
             </div>
-            <UTextarea
-              v-model="input"
-              autoresize
-              :rows="1"
-              :maxrows="5"
-              :placeholder="isInternal ? 'Escrever nota interna...' : 'Digite uma mensagem... (Enter para enviar)'"
+            <UPopover
+              v-model:open="showQuickReplies"
+              :popper="{ placement: 'top-start', strategy: 'fixed' }"
               class="flex-1"
-              :ui="{ base: isInternal ? ' ring-amber-400 focus:ring-amber-500' : '' }"
-              @keydown.enter.exact.prevent="handleSend"
-            />
+            >
+              <UTextarea
+                ref="textareaRef"
+                v-model="input"
+                autoresize
+                :rows="1"
+                :maxrows="5"
+                :placeholder="isInternal ? 'Escrever nota interna...' : 'Digite uma mensagem... (Enter para enviar)'"
+                class="w-full"
+                :ui="{ base: isInternal ? ' ring-amber-400 focus:ring-amber-500' : '' }"
+                @keydown.enter.exact.prevent="handleSend"
+                @input="handleInput"
+              />
+
+              <template #panel>
+                <div
+                  class="w-80 max-h-60 overflow-y-auto bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 rounded-lg"
+                >
+                  <div
+                    class="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center"
+                  >
+                    <span
+                      class="text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                    >Respostas Rápidas</span>
+                    <UKbd
+                      size="xs"
+                    >
+                      /
+                    </UKbd>
+                  </div>
+                  <div
+                    v-if="loadingQuickReplies"
+                    class="p-4 flex justify-center"
+                  >
+                    <UIcon
+                      name="i-heroicons-arrow-path"
+                      class="w-5 h-5 animate-spin text-slate-400"
+                    />
+                  </div>
+                  <div
+                    v-else-if="filteredQuickReplies.length === 0"
+                    class="p-4 text-center text-sm text-slate-500"
+                  >
+                    Nenhum atalho encontrado.
+                  </div>
+                  <ul
+                    v-else
+                    class="p-1"
+                  >
+                    <li
+                      v-for="reply in filteredQuickReplies"
+                      :key="reply.id"
+                      class="px-3 py-2 text-sm cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded flex justify-between items-center group transition-colors"
+                      @click="selectQuickReply(reply)"
+                    >
+                      <div
+                        class="flex flex-col min-w-0 pr-4"
+                      >
+                        <span
+                          class="font-bold text-primary-600 dark:text-primary-400"
+                        >/{{ reply.shortcut }}</span>
+                        <span
+                          class="text-xs text-slate-500 truncate"
+                        >{{ reply.content }}</span>
+                      </div>
+                      <UIcon
+                        name="i-heroicons-chevron-right"
+                        class="w-4 h-4 text-slate-300 group-hover:text-primary-400 shrink-0"
+                      />
+                    </li>
+                  </ul>
+                </div>
+              </template>
+            </UPopover>
           </div>
           
           <div class="flex items-center gap-2">
@@ -265,6 +339,63 @@ const handleSend = () => {
   // Actually, keeping it might be better for "sessions" of notes.
   // Let's reset it to be safe.
   isInternal.value = false
+}
+
+// Quick Replies Logic
+interface QuickReply {
+  id: string
+  shortcut: string
+  content: string
+}
+
+const showQuickReplies = ref(false)
+const quickReplies = ref<QuickReply[]>([])
+const loadingQuickReplies = ref(false)
+const textareaRef = ref(null)
+
+const fetchQuickReplies = async () => {
+  if (!props.conversation?.workspace_id) return
+  loadingQuickReplies.value = true
+  try {
+    const data = await $fetch<QuickReply[]>(`/api/workspace/${props.conversation.workspace_id}/quick-replies`)
+    quickReplies.value = data
+  } catch (e) {
+    console.error('Failed to fetch quick replies', e)
+  } finally {
+    loadingQuickReplies.value = false
+  }
+}
+
+onMounted(() => {
+  fetchQuickReplies()
+})
+
+const filteredQuickReplies = computed(() => {
+  if (!input.value.startsWith('/')) return []
+  const searchTerm = input.value.slice(1).toLowerCase()
+  return quickReplies.value.filter(r => r.shortcut.toLowerCase().includes(searchTerm))
+})
+
+const handleInput = () => {
+  if (input.value.startsWith('/')) {
+    showQuickReplies.value = true
+  } else {
+    showQuickReplies.value = false
+  }
+}
+
+const selectQuickReply = (reply: QuickReply) => {
+  let content = reply.content
+  if (props.conversation?.contact?.name) {
+    content = content.replace(/{contato}/g, props.conversation.contact.name)
+  }
+  input.value = content
+  showQuickReplies.value = false
+  // Focus back to textarea (Nuxt UI UTextarea usually has a textarea internal element)
+  nextTick(() => {
+    const el = (textareaRef.value as any)?.$el?.querySelector('textarea')
+    if (el) el.focus()
+  })
 }
 
 // Auto-scroll
