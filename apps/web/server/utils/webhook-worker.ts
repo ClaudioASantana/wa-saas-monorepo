@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { redis } from './redis'
 import { logger } from './logger'
 import { mediaQueue } from './media-queue'
+import { emitToTenant } from './socket'
 
 /**
  * Worker to process consolidated Evolution API webhooks.
@@ -202,4 +203,14 @@ async function handleMessageUpsert(supabase: any, instanceId: string, messageDat
   })
 
   if (insertError) throw insertError
+
+  // 6. Emit Real-time event via Socket.IO
+  emitToTenant(conversation.tenant_id, 'message:new', {
+    conversationId: conversation.id,
+    messageId: messageId,
+    content,
+    from: senderName,
+    timestamp: now,
+    type: msgType
+  })
 }

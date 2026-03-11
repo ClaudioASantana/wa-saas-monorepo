@@ -87,7 +87,10 @@
           @click="selectConversation(conv)"
         >
           <div class="flex items-start space-x-3">
-            <UAvatar :alt="conv.contact?.name || conv.contact?.phone || '?'" size="md" />
+            <UAvatar
+              :alt="conv.contact?.name || conv.contact?.phone || '?'"
+              size="md"
+            />
             <div class="flex-1 min-w-0">
               <div class="flex justify-between items-baseline mb-1">
                 <h3 class="text-sm font-semibold text-slate-900 dark:text-white truncate">
@@ -235,7 +238,10 @@
         <div
           class="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0"
         >
-          <form @submit.prevent="sendMessage" class="flex items-end space-x-2 max-w-4xl mx-auto">
+          <form
+            class="flex items-end space-x-2 max-w-4xl mx-auto"
+            @submit.prevent="sendMessage"
+          >
             <UTextarea
               v-model="newMessage"
               autoresize
@@ -270,22 +276,33 @@
       <div class="p-4 space-y-4">
         <template v-if="selectedConv">
           <div class="text-center">
-            <UAvatar :alt="selectedConv.contact?.name || '?'" size="xl" class="mx-auto" />
+            <UAvatar
+              :alt="selectedConv.contact?.name || '?'"
+              size="xl"
+              class="mx-auto"
+            />
             <p class="mt-2 font-semibold text-slate-900 dark:text-white text-sm">
               {{ selectedConv.contact?.name || 'Desconhecido' }}
             </p>
-            <p class="text-xs text-slate-500">{{ selectedConv.contact?.phone }}</p>
+            <p class="text-xs text-slate-500">
+              {{ selectedConv.contact?.phone }}
+            </p>
           </div>
           <UDivider />
           <div class="space-y-2">
             <div class="flex items-center space-x-2 text-xs text-slate-500">
-              <UIcon name="i-heroicons-calendar" class="w-4 h-4" />
+              <UIcon
+                name="i-heroicons-calendar"
+                class="w-4 h-4"
+              />
               <span>Desde {{ formatDate(selectedConv.created_at) }}</span>
             </div>
           </div>
           <div>
             <div class="flex items-center justify-between mb-2">
-              <p class="text-xs font-medium text-slate-500">Anotações</p>
+              <p class="text-xs font-medium text-slate-500">
+                Anotações
+              </p>
               <UButton
                 v-if="currentNotes !== selectedConv.contact?.notes"
                 size="xs"
@@ -306,9 +323,16 @@
             />
           </div>
         </template>
-        <div v-else class="flex flex-col items-center justify-center h-full text-center">
-          <UIcon name="i-heroicons-user" class="w-8 h-8 text-slate-200 mb-2" />
-          <p class="text-xs text-slate-400">Selecione uma conversa</p>
+        <div
+          class="flex flex-col items-center justify-center h-full text-center"
+        >
+          <UIcon
+            name="i-heroicons-user"
+            class="w-8 h-8 text-slate-200 mb-2"
+          />
+          <p class="text-xs text-slate-400">
+            Selecione uma conversa
+          </p>
         </div>
       </div>
     </div>
@@ -316,9 +340,11 @@
 </template>
 
 <script setup lang="ts">
-import type { RealtimeChannel } from '@supabase/supabase-js'
+
 
 definePageMeta({ layout: 'workspace', middleware: ['auth'] })
+
+const { onEvent, offEvent } = useWebSocket()
 
 const route = useRoute()
 const workspaceId = route.params.id as string
@@ -349,6 +375,7 @@ interface Message {
   content: string | null
   body: string | null         // coluna gerada = content
   media_url: string | null
+  wa_message_id: string | null
   sender_name: string | null
   created_at: string
 }
@@ -503,76 +530,63 @@ const resolveConversation = async () => {
   refreshConv()
 }
 
-// ── Realtime ──────────────────────────────────────────────────────────────────
-let msgChannel: RealtimeChannel | null = null
-
-const subscribeToConversations = () => {
-  supabase
-    .channel(`workspace-convs-${workspaceId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'conversations',
-        filter: `workspace_id=eq.${workspaceId}`,
-      },
-      () => refreshConv()
-    )
-    .subscribe()
+// ── Realtime (Socket.IO) ──────────────────────────────────────────────────────
+const handleIncomingMessage = (newMsg: {
+  conversationId: string;
+  messageId: string;
+  type?: string;
+  content: string;
+  from: string;
+  timestamp?: string;
+}) => {
+  // 1. Update messages list if it belongs to current conversation
+  if (selectedConv.value && newMsg.conversationId === selectedConv.value.id) {
+    if (messages.value && !messages.value.find((m) => m.id === newMsg.messageId || m.wa_message_id === newMsg.messageId)) {
+      // Map Socket payload to Message type
+      const msg: Message = {
+        id: newMsg.messageId,
+        direction: 'inbound',
+        type: newMsg.type || 'text',
+        content: newMsg.content,
+        body: newMsg.content,
+        media_url: null,
+        wa_message_id: newMsg.messageId,
+        sender_name: newMsg.from,
+        created_at: newMsg.timestamp || new Date().toISOString()
+      }
+      messages.value = [...messages.value, msg]
+    }
+  }
+  
+  // 2. Refresh conversations list to update preview and unread count
+  refreshConv()
 }
 
-const subscribeToMessages = (conversationId: string) => {
-  if (msgChannel) supabase.removeChannel(msgChannel)
-  msgChannel = supabase
-    .channel(`conv-msgs-${conversationId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`,
-      },
-      (payload) => {
-        const newMsg = payload.new as Message
-        if (messages.value && !messages.value.find((m) => m.id === newMsg.id)) {
-          messages.value = [...messages.value, newMsg]
-        }
+const handleMessageUpdate = (update: {
+  messageId: string;
+  mediaUrl: string;
+  status: string;
+}) => {
+  if (messages.value) {
+    const index = messages.value.findIndex((m) => m.id === update.messageId || m.wa_message_id === update.messageId)
+    if (index !== -1) {
+      messages.value[index] = { 
+        ...messages.value[index], 
+        media_url: update.mediaUrl,
+        // Update other fields if necessary
       }
-    )
-    .on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`,
-      },
-      (payload) => {
-        const updatedMsg = payload.new as Message
-        if (messages.value) {
-          const index = messages.value.findIndex((m) => m.id === updatedMsg.id)
-          if (index !== -1) {
-            messages.value[index] = { ...messages.value[index], ...updatedMsg }
-          }
-        }
-      }
-    )
-    .subscribe()
+    }
+  }
 }
 
 onMounted(() => {
-  subscribeToConversations()
-})
-
-watch(convId, (id) => {
-  if (id) subscribeToMessages(id)
-  else if (msgChannel) supabase.removeChannel(msgChannel)
+  onEvent('message:new', handleIncomingMessage)
+  onEvent('message:update', handleMessageUpdate)
 })
 
 onUnmounted(() => {
-  supabase.removeAllChannels()
+  offEvent('message:new')
+  offEvent('message:update')
 })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

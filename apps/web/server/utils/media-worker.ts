@@ -2,6 +2,7 @@ import { Worker } from 'bullmq'
 import { createClient } from '@supabase/supabase-js'
 import { redis } from './redis'
 import { logger } from './logger'
+import { emitToTenant } from './socket'
 
 /**
  * Worker to process media uploads from Evolution API to Supabase Storage.
@@ -53,6 +54,13 @@ export function createMediaWorker(supabaseUrl: string, supabaseServiceKey: strin
 
       // 5. Update the message record with the new URL
       await supabase.from('messages').update({ media_url: publicUrl }).eq('wa_message_id', messageId)
+
+      // 6. Emit Real-time event via Socket.IO
+      emitToTenant(tenantId, 'message:update', {
+        messageId: messageId,
+        mediaUrl: publicUrl,
+        status: 'uploaded'
+      })
 
       logger.info({ messageId, publicUrl }, '[MediaWorker] Media processed successfully')
       return { success: true, url: publicUrl }
