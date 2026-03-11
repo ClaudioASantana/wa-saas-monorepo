@@ -5,14 +5,16 @@
       class="w-80 border-r border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 flex flex-col shrink-0"
     >
       <div class="p-4 border-b border-slate-200 dark:border-slate-800 space-y-3">
-        <h2 class="text-lg font-bold text-slate-900 dark:text-white">Conversas</h2>
+        <h2 class="text-lg font-bold text-slate-900 dark:text-white">
+          Conversas
+        </h2>
         <UInput
+          v-model="search"
           icon="i-heroicons-magnifying-glass-20-solid"
           size="sm"
           color="white"
           :trailing="false"
           placeholder="Pesquisar..."
-          v-model="search"
         />
         <div class="flex space-x-2">
           <UButton
@@ -20,29 +22,39 @@
             :color="filter === 'all' ? 'primary' : 'gray'"
             :variant="filter === 'all' ? 'soft' : 'ghost'"
             @click="filter = 'all'"
-            >Todas</UButton
           >
+            Todas
+          </UButton>
           <UButton
             size="xs"
             :color="filter === 'open' ? 'primary' : 'gray'"
             :variant="filter === 'open' ? 'soft' : 'ghost'"
             @click="filter = 'open'"
-            >Abertas</UButton
           >
+            Abertas
+          </UButton>
           <UButton
             size="xs"
             :color="filter === 'resolved' ? 'primary' : 'gray'"
             :variant="filter === 'resolved' ? 'soft' : 'ghost'"
             @click="filter = 'resolved'"
-            >Resolvidas</UButton
           >
+            Resolvidas
+          </UButton>
         </div>
       </div>
 
       <div class="flex-1 overflow-y-auto">
         <!-- Loading -->
-        <div v-if="convPending" class="p-4 space-y-3">
-          <USkeleton v-for="i in 4" :key="i" class="h-16 w-full" />
+        <div
+          v-if="convPending"
+          class="p-4 space-y-3"
+        >
+          <USkeleton
+            v-for="i in 4"
+            :key="i"
+            class="h-16 w-full"
+          />
         </div>
 
         <!-- Empty -->
@@ -50,8 +62,13 @@
           v-else-if="!filteredConversations.length"
           class="flex flex-col items-center justify-center h-full text-center p-6"
         >
-          <UIcon name="i-heroicons-chat-bubble-left-right" class="w-10 h-10 text-slate-300 mb-3" />
-          <p class="text-sm text-slate-500">Nenhuma conversa ainda.</p>
+          <UIcon
+            name="i-heroicons-chat-bubble-left-right"
+            class="w-10 h-10 text-slate-300 mb-3"
+          />
+          <p class="text-sm text-slate-500">
+            Nenhuma conversa ainda.
+          </p>
           <p class="text-xs text-slate-400 mt-1">
             As mensagens aparecerão aqui quando chegarem via Evolution API.
           </p>
@@ -106,8 +123,12 @@
           name="i-heroicons-chat-bubble-oval-left-ellipsis"
           class="w-16 h-16 text-slate-200 dark:text-slate-700 mb-4"
         />
-        <h3 class="text-base font-semibold text-slate-400">Selecione uma conversa</h3>
-        <p class="text-sm text-slate-400 mt-1">Clique em uma conversa ao lado para começar.</p>
+        <h3 class="text-base font-semibold text-slate-400">
+          Selecione uma conversa
+        </h3>
+        <p class="text-sm text-slate-400 mt-1">
+          Clique em uma conversa ao lado para começar.
+        </p>
       </div>
 
       <template v-else>
@@ -124,7 +145,9 @@
               <h2 class="text-base font-semibold text-slate-900 dark:text-white">
                 {{ selectedConv.contact?.name || selectedConv.contact?.phone }}
               </h2>
-              <p class="text-xs text-slate-500">{{ selectedConv.contact?.phone }}</p>
+              <p class="text-xs text-slate-500">
+                {{ selectedConv.contact?.phone }}
+              </p>
             </div>
           </div>
           <div class="flex items-center space-x-2">
@@ -136,12 +159,12 @@
               {{ selectedConv.status === 'open' ? 'Aberta' : 'Resolvida' }}
             </UBadge>
             <UButton
+              :loading="resolving"
               icon="i-heroicons-check-circle"
               color="gray"
               variant="ghost"
               size="sm"
               @click="resolveConversation"
-              :loading="resolving"
             >
               Resolver
             </UButton>
@@ -149,12 +172,24 @@
         </div>
 
         <!-- Messages -->
-        <div ref="messagesContainer" class="flex-1 overflow-y-auto p-6 space-y-3">
-          <div v-if="msgPending" class="flex justify-center py-8">
-            <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 text-primary-400 animate-spin" />
+        <div
+          ref="messagesContainer"
+          class="flex-1 overflow-y-auto p-6 space-y-3"
+        >
+          <div
+            v-if="msgPending"
+            class="flex justify-center py-8"
+          >
+            <UIcon
+              name="i-heroicons-arrow-path"
+              class="w-6 h-6 text-primary-400 animate-spin"
+            />
           </div>
           <template v-else>
-            <div v-if="!messages?.length" class="text-center text-slate-400 text-sm py-8">
+            <div
+              v-if="!messages?.length"
+              class="text-center text-slate-400 text-sm py-8"
+            >
               Nenhuma mensagem ainda nesta conversa.
             </div>
             <div
@@ -183,9 +218,11 @@
                   v-else-if="msg.type === 'image' && msg.media_url"
                   :src="msg.media_url"
                   class="rounded-md max-w-full mb-1"
-                />
+                >
                 <!-- Text -->
-                <p class="text-sm whitespace-pre-wrap break-words">{{ msg.body || msg.content }}</p>
+                <p class="text-sm whitespace-pre-wrap break-words">
+                  {{ msg.body || msg.content }}
+                </p>
                 <span class="text-[10px] mt-1 block text-right opacity-60">{{
                   formatTime(msg.created_at)
                 }}</span>
@@ -402,7 +439,7 @@ const saveNotes = async () => {
   if (!selectedConv.value?.contact?.id) return
   savingNotes.value = true
   try {
-    const { error } = await supabase
+    const { error } = await supabaseRaw
       .from('contacts')
       .update({ notes: currentNotes.value })
       .eq('id', selectedConv.value.contact.id)
@@ -456,7 +493,7 @@ const sendMessage = async () => {
 const resolveConversation = async () => {
   if (!selectedConv.value) return
   resolving.value = true
-  await supabase
+  await supabaseRaw
     .from('conversations')
     .update({ status: 'resolved' })
     .eq('id', selectedConv.value.id)
