@@ -21,6 +21,16 @@ export interface Agent {
   avatar_url?: string | null
 }
 
+export interface Tag {
+  id: string
+  name: string
+  color: string
+}
+
+export interface ConversationTag {
+  tag: Tag
+}
+
 export interface Conversation {
   id: string
   workspace_id: string
@@ -35,6 +45,7 @@ export interface Conversation {
   created_at: string
   contact?: Contact
   agent?: Agent
+  tags?: ConversationTag[]
 }
 
 export interface Message {

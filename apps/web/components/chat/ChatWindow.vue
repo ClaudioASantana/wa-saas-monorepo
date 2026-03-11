@@ -21,14 +21,60 @@
         class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur flex items-center justify-between px-6 shrink-0"
       >
         <div class="flex items-center space-x-3">
-          <UAvatar
-            :alt="conversation.contact?.name || conversation.contact?.phone || '?'"
-            size="md"
-          />
-          <div>
-            <h2 class="text-base font-semibold text-slate-900 dark:text-white">
-              {{ conversation.contact?.name || conversation.contact?.phone }}
-            </h2>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <h1 class="text-sm font-bold text-slate-900 dark:text-white truncate">
+                {{ conversation.contact?.name || conversation.contact?.phone }}
+              </h1>
+              <div class="flex flex-wrap gap-1">
+                <UBadge
+                  v-for="tagLink in conversation.tags"
+                  :key="tagLink.tag.id"
+                  size="xs"
+                  variant="soft"
+                  :style="{
+                    backgroundColor: tagLink.tag.color + '15',
+                    color: tagLink.tag.color,
+                    borderColor: tagLink.tag.color + '30'
+                  }"
+                  class="border font-medium"
+                >
+                  {{ tagLink.tag.name }}
+                </UBadge>
+                
+                <UPopover :popper="{ placement: 'bottom-start' }">
+                  <UButton
+                    size="xs"
+                    color="gray"
+                    variant="ghost"
+                    icon="i-heroicons-plus-circle"
+                    class="h-5 px-1 min-w-0"
+                  />
+                  <template #panel>
+                    <div class="p-2 w-48 space-y-2">
+                      <p class="text-[10px] font-bold text-slate-400 uppercase px-1">Tags</p>
+                      <div class="space-y-1">
+                        <div
+                          v-for="tag in allTags"
+                          :key="tag.id"
+                          class="flex items-center space-x-2 px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                          @click="toggleTag(tag.id)"
+                        >
+                          <UCheckbox
+                            :model-value="hasTag(tag.id)"
+                            size="xs"
+                            @click.stop
+                            @update:model-value="toggleTag(tag.id)"
+                          />
+                          <span class="text-xs" :style="{ color: tag.color }">#</span>
+                          <span class="text-xs flex-1 truncate">{{ tag.name }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </UPopover>
+              </div>
+            </div>
             <p class="text-xs text-slate-500">
               {{ conversation.contact?.phone }}
             </p>
@@ -300,7 +346,7 @@ const props = defineProps<{
   typingAgents: string[]
 }>()
 
-const emit = defineEmits(['send', 'resolve', 'assign', 'typing'])
+const emit = defineEmits(['send', 'typing', 'resolve', 'assign', 'tag-change'])
 const input = ref('')
 const isInternal = ref(false)
 const container = ref<HTMLElement | null>(null)
@@ -366,8 +412,55 @@ const fetchQuickReplies = async () => {
   }
 }
 
+// Tags Logic
+import type { Tag } from '~/types/chat.types'
+
+const allTags = ref<Tag[]>([])
+
+const fetchTags = async () => {
+  if (!props.conversation?.workspace_id) return
+  try {
+    const data = await $fetch<Tag[]>(`/api/workspace/${props.conversation.workspace_id}/tags`)
+    allTags.value = data
+  } catch (e) {
+    console.error('Failed to fetch tags', e)
+  }
+}
+
+const hasTag = (tagId: string) => {
+  return props.conversation?.tags?.some(t => t.tag.id === tagId) ?? false
+}
+
+const toggleTag = async (tagId: string) => {
+  if (!props.conversation) return
+  
+  const currentTagIds = props.conversation.tags?.map(t => t.tag.id) || []
+  let newTagIds: string[]
+  
+  if (currentTagIds.includes(tagId)) {
+    newTagIds = currentTagIds.filter(id => id !== tagId)
+  } else {
+    newTagIds = [...currentTagIds, tagId]
+  }
+
+  try {
+    await $fetch(`/api/chat/conversations/${props.conversation.id}/tags`, {
+      method: 'POST',
+      body: { tagIds: newTagIds }
+    })
+    emit('tag-change')
+  } catch (e) {
+    console.error('Failed to update tags', e)
+  }
+}
+
 onMounted(() => {
   fetchQuickReplies()
+  fetchTags()
+})
+
+watch(() => props.conversation?.workspace_id, (newId) => {
+  if (newId) fetchTags()
 })
 
 const filteredQuickReplies = computed(() => {

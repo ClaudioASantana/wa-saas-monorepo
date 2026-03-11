@@ -4,21 +4,39 @@
       <h2 class="text-lg font-bold text-slate-900 dark:text-white">
         Conversas
       </h2>
-      <UInput
-        v-model="searchLocal"
-        icon="i-heroicons-magnifying-glass-20-solid"
-        size="sm"
-        color="white"
-        :trailing="false"
-        placeholder="Pesquisar..."
-      />
-      <div class="flex space-x-2">
+      <div class="flex items-center gap-2">
+        <UInput
+          v-model="searchLocal"
+          icon="i-heroicons-magnifying-glass-20-solid"
+          size="sm"
+          color="white"
+          :trailing="false"
+          placeholder="Pesquisar..."
+          class="flex-1"
+        />
+        <USelectMenu
+          v-model="tagFilterLocal"
+          :options="allTags"
+          value-attribute="id"
+          option-attribute="name"
+          multiple
+          placeholder="Tags"
+          size="sm"
+          class="w-24"
+        >
+          <template #label>
+            <UIcon name="i-heroicons-tag" class="w-4 h-4" />
+          </template>
+        </USelectMenu>
+      </div>
+      <div class="flex space-x-2 overflow-x-auto pb-1 no-scrollbar">
         <UButton
           v-for="btn in filterButtons"
           :key="btn.value"
           size="xs"
           :color="filterLocal === btn.value ? 'primary' : 'gray'"
           :variant="filterLocal === btn.value ? 'soft' : 'ghost'"
+          class="shrink-0"
           @click="filterLocal = btn.value"
         >
           {{ btn.label }}
@@ -78,25 +96,36 @@
               </span>
             </div>
             <div class="flex items-center justify-between">
-              <p 
+              <p
                 v-if="typingAgents[conv.id]?.size > 0"
                 class="text-sm text-primary-500 font-medium truncate flex-1 mr-2"
               >
                 Digitando...
               </p>
-              <p 
+              <p
                 v-else
                 class="text-sm text-slate-500 dark:text-slate-400 truncate flex-1 mr-2"
               >
                 {{ conv.last_message_preview || '...' }}
               </p>
-              <UIcon
-                v-if="conv.agent_id"
-                v-tooltip="conv.agent?.name || 'Atribuído'"
-                :name="conv.agent_id === currentAgentId ? 'i-heroicons-user-circle-20-solid' : 'i-heroicons-user-circle'"
-                class="w-4 h-4 shrink-0"
-                :class="conv.agent_id === currentAgentId ? 'text-primary-500' : 'text-slate-400'"
-              />
+              <div class="flex items-center justify-between mt-1">
+                <div class="flex flex-wrap gap-1 overflow-hidden">
+                  <div
+                    v-for="tagLink in conv.tags"
+                    :key="tagLink.tag.id"
+                    v-tooltip="tagLink.tag.name"
+                    class="w-2 h-2 rounded-full"
+                    :style="{ backgroundColor: tagLink.tag.color }"
+                  />
+                </div>
+                <UIcon
+                  v-if="conv.agent_id"
+                  v-tooltip="conv.agent?.name || 'Atribuído'"
+                  :name="conv.agent_id === currentAgentId ? 'i-heroicons-user-circle-20-solid' : 'i-heroicons-user-circle'"
+                  class="w-4 h-4 shrink-0"
+                  :class="conv.agent_id === currentAgentId ? 'text-primary-500' : 'text-slate-400'"
+                />
+              </div>
             </div>
           </div>
           <span
@@ -112,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Conversation } from '~/types/chat.types'
+import type { Conversation, Tag } from '~/types/chat.types'
 
 const props = defineProps<{
   conversations: Conversation[]
@@ -120,11 +149,13 @@ const props = defineProps<{
   pending?: boolean
   search: string
   filter: string
+  tagFilter: string[]
+  allTags: Tag[]
   currentAgentId?: string
   typingAgents: Record<string, Set<string>>
 }>()
 
-const emit = defineEmits(['update:search', 'update:filter', 'select'])
+const emit = defineEmits(['update:search', 'update:filter', 'update:tagFilter', 'select'])
 
 const searchLocal = computed({
   get: () => props.search,
@@ -134,6 +165,11 @@ const searchLocal = computed({
 const filterLocal = computed({
   get: () => props.filter,
   set: (val) => emit('update:filter', val)
+})
+
+const tagFilterLocal = computed({
+  get: () => props.tagFilter,
+  set: (val) => emit('update:tagFilter', val)
 })
 
 const filterButtons = [

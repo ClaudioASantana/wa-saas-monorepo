@@ -1,14 +1,16 @@
 <template>
   <div class="h-full flex">
     <!-- Left: Conversation List -->
-    <ConversationList
+    <ChatConversationList
       v-model:search="search"
       v-model:filter="filter"
+      v-model:tag-filter="tagFilter"
       :conversations="filteredConversations"
-      :selected-id="selectedConv?.id"
-      :pending="convPending"
-      :current-agent-id="currentAgent?.id"
+      :selected-id="selectedConvId || undefined"
+      :pending="pending"
+      :current-agent-id="user?.id"
       :typing-agents="typingAgents"
+      :all-tags="allTags || []"
       @select="selectConversation"
     />
 
@@ -26,6 +28,7 @@
       @typing="(isTyping) => selectedConv && emit('typing', { conversationId: selectedConv.id, isTyping })"
       @resolve="resolveConversation"
       @assign="assignConversation"
+      @tag-change="refreshConv"
     />
 
     <!-- Right: Contact Details -->
@@ -39,8 +42,8 @@
 </template>
 
 <script setup lang="ts">
-import type { Conversation, Message, Agent, AgentPresenceEvent, AgentTypingEvent } from '~/types/chat.types'
-import ConversationList from '~/components/chat/ConversationList.vue'
+import type { Conversation, Message, Agent, AgentPresenceEvent, AgentTypingEvent, Tag } from '~/types/chat.types'
+import ChatConversationList from '~/components/chat/ConversationList.vue'
 import ChatWindow from '~/components/chat/ChatWindow.vue'
 import ContactSidebar from '~/components/chat/ContactSidebar.vue'
 import { useWebSocket } from '~/composables/useWebSocket'
@@ -63,9 +66,10 @@ const getActiveAgents = (conversationId: string) => Array.from(activeAgents.valu
 const getTypingAgents = (conversationId: string) => Array.from(typingAgents.value[conversationId] || [])
 
 // ── State ─────────────────────────────────────────────────────────────────────
-const filter = ref<'all' | 'open' | 'resolved' | 'mine'>('all')
+const filter = ref('all')
 const search = ref('')
-const selectedConv = ref<Conversation | null>(null)
+const tagFilter = ref<string[]>([])
+const selectedConvId = ref<string | null>(null)
 const sending = ref(false)
 const resolving = ref(false)
 const savingNotes = ref(false)
@@ -74,21 +78,26 @@ const user = useSupabaseUser()
 const currentAgent = ref<Agent | null>(null)
 
 // ── Conversations ─────────────────────────────────────────────────────────────
-const {
-  data: conversations,
-  pending: convPending,
-  refresh: refreshConv,
-} = await useAsyncData<Conversation[]>(`conv-${workspaceId}`, async () => {
+// Tags
+const { data: allTags } = await useAsyncData(`workspace-${workspaceId}-tags`, () =>
+  $fetch<Tag[]>(`/api/workspace/${workspaceId}/tags`)
+)
+
+// Conversations
+const { data: conversations, pending, refresh: refreshConv } = await useAsyncData<
+Conversation[]>(`conv-${workspaceId}`, async () => {
   const { data, error } = await supabase
     .from('conversations')
     .select(
-      'id, workspace_id, channel_id, contact_id, agent_id, tenant_id, status, last_message_at, last_message_preview, unread_count, created_at, contact:contacts(id, name, phone, notes), agent:agents(id, name)'
+      'id, workspace_id, channel_id, contact_id, agent_id, tenant_id, status, last_message_at, last_message_preview, unread_count, created_at, contact:contacts(id, name, phone, notes), agent:agents(id, name), tags:conversation_tags(tag:tags(id, name, color))'
     )
     .eq('workspace_id', workspaceId)
     .order('last_message_at', { ascending: false })
   if (error) throw error
   return (data ?? []) as unknown as Conversation[]
 })
+
+const selectedConv = computed(() => conversations.value?.find(c => c.id === selectedConvId.value) || null)
 
 const filteredConversations = computed(() => {
   let list = conversations.value ?? []
@@ -97,6 +106,13 @@ const filteredConversations = computed(() => {
   } else if (filter.value !== 'all') {
     list = list.filter((c) => c.status === filter.value)
   }
+  // Tag filter
+  if (tagFilter.value.length > 0) {
+    list = list.filter(conv => 
+      conv.tags?.some(t => tagFilter.value.includes(t.tag.id))
+    )
+  }
+  // Search filter
   if (search.value) {
     const q = search.value.toLowerCase()
     list = list.filter(
@@ -131,11 +147,11 @@ const {
 // ── Actions ───────────────────────────────────────────────────────────────────
 const selectConversation = async (conv: Conversation) => {
   // Leave previous room if any
-  if (selectedConv.value) {
-    emit('leave:conversation', selectedConv.value.id)
+  if (selectedConvId.value) {
+    emit('leave:conversation', selectedConvId.value)
   }
 
-  selectedConv.value = conv
+  selectedConvId.value = conv.id
   
   // Join new room
   emit('join:conversation', conv.id)
@@ -205,22 +221,21 @@ const sendMessage = async (text: string, isInternal: boolean = false) => {
   }
 }
 
-const resolveConversation = async () => {
-  if (!selectedConv.value) return
+const resolveConversation = async (data: { conversationId: string }) => {
   resolving.value = true
   try {
-    await $fetch('/api/chat/resolve', {
-      method: 'POST',
-      body: { conversationId: selectedConv.value.id }
+    await $fetch(`/api/chat/conversations/${data.conversationId}/status`, {
+      method: 'PATCH',
+      body: { status: 'resolved' }
     })
-    
-    selectedConv.value.status = 'resolved'
+    await refreshConv()
     useToast().add({ title: 'Conversa resolvida!', icon: 'i-heroicons-check-circle', color: 'green' })
-    refreshConv()
-  } catch (e: any) {
+  } catch (err: unknown) {
+    const error = err as Error
+    console.error('Error resolving conversation:', error)
     useToast().add({
       title: 'Erro ao resolver conversa',
-      description: e.message,
+      description: error.message,
       color: 'red'
     })
   } finally {
