@@ -25,6 +25,7 @@ export default defineNuxtConfig({
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',
     // Evolution API configuration
     evolutionApiUrl: process.env.EVOLUTION_API_URL || 'http://localhost:8080',
+    evolutionApiKey: process.env.EVOLUTION_GLOBAL_API_KEY || '',
     public: {
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:4000',
       appUrl: process.env.NUXT_PUBLIC_APP_URL || 'http://localhost:3000',

@@ -2,12 +2,15 @@ import { Worker, Job } from 'bullmq'
 import { createClient } from '@supabase/supabase-js'
 import { redis } from './redis'
 import { logger } from './logger'
-import { ChatService } from '../services/chat.service'
 import { emitToTenant } from './socket'
 
-export function createMediaWorker(supabaseUrl: string, supabaseServiceKey: string) {
+export function createMediaWorker(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  evolutionApiUrl: string,
+  evolutionApiKey: string
+) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
-  const chatService = new ChatService(supabase)
 
   const worker = new Worker(
     'media-processing',
@@ -17,15 +20,12 @@ export function createMediaWorker(supabaseUrl: string, supabaseServiceKey: strin
       logger.info({ messageId, tenantId }, '[MediaWorker] Processing media')
 
       try {
-        // 1. Get media from Evolution API (using environment variables)
-        const evolutionBaseUrl = process.env.EVOLUTION_API_URL
-        const evolutionApiKey = process.env.EVOLUTION_API_KEY
-        
-        if (!evolutionBaseUrl || !evolutionApiKey) {
+        // 1. Get media from Evolution API (using passed parameters)
+        if (!evolutionApiUrl || !evolutionApiKey) {
           throw new Error('Evolution API credentials missing')
         }
 
-        const response = await fetch(`${evolutionBaseUrl}/chat/getBase64FromMediaMessage/${evolutionInstanceId}`, {
+        const response = await fetch(`${evolutionApiUrl}/chat/getBase64FromMediaMessage/${evolutionInstanceId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -60,8 +60,8 @@ export function createMediaWorker(supabaseUrl: string, supabaseServiceKey: strin
         const month = String(now.getMonth() + 1).padStart(2, '0')
         const fileName = `${tenantId}/${year}/${month}/${messageId}.${fileExt}`
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('media')
+        const { error: uploadError } = await supabase.storage
+          .from('chat-media')
           .upload(fileName, buffer, {
             contentType: mimeType,
             upsert: true
@@ -71,7 +71,7 @@ export function createMediaWorker(supabaseUrl: string, supabaseServiceKey: strin
 
         // 3. Get Public URL
         const { data: { publicUrl } } = supabase.storage
-          .from('media')
+          .from('chat-media')
           .getPublicUrl(fileName)
 
         // 4. Update Message & Notify via ChatService

@@ -102,60 +102,52 @@
             />
           </UAvatarGroup>
         </div>
-        <div class="flex items-center space-x-2">
-          <!-- Assign Button -->
-          <UButton
-            v-if="!conversation.agent_id"
-            icon="i-heroicons-user-plus"
-            color="primary"
-            variant="soft"
-            size="sm"
-            @click="$emit('assign', currentAgentId)"
-          >
-            Assumir
-          </UButton>
-          <UButton
-            v-else-if="conversation.agent_id === currentAgentId"
-            icon="i-heroicons-user-minus"
-            color="red"
-            variant="ghost"
-            size="sm"
-            @click="$emit('assign', null)"
-          >
-            Liberar
-          </UButton>
-          <UBadge
-            v-else
-            color="gray"
-            variant="subtle"
-            size="xs"
-            class="flex items-center gap-1"
-          >
-            <UIcon name="i-heroicons-user" />
-            {{ conversation.agent?.name || 'Agente' }}
-          </UBadge>
+        <!-- Assignment & Status -->
+        <div class="flex items-center gap-3">
+          <ConversationAssignment
+            :conversation="conversation"
+            :current-agent-id="currentAgentId"
+            @assign="(agentId: string | null) => $emit('assign', agentId)"
+          />
 
           <UDivider
             orientation="vertical"
+            class="h-6"
           />
 
-          <UBadge
-            :color="conversation.status === 'open' ? 'green' : 'gray'"
-            variant="subtle"
-            size="xs"
-          >
-            {{ conversation.status === 'open' ? 'Aberta' : 'Resolvida' }}
-          </UBadge>
-          <UButton
-            :loading="resolving"
-            icon="i-heroicons-check-circle"
-            color="gray"
-            variant="ghost"
-            size="sm"
-            @click="$emit('resolve')"
-          >
-            Resolver
-          </UButton>
+          <div class="flex items-center gap-2">
+            <UBadge
+              :color="conversation.status === 'open' ? 'green' : 'gray'"
+              variant="subtle"
+              size="xs"
+              class="capitalize"
+            >
+              {{ conversation.status === 'open' ? 'Aberta' : 'Resolvida' }}
+            </UBadge>
+
+            <UButton
+              v-if="conversation.status === 'open'"
+              :loading="resolving"
+              icon="i-heroicons-check-circle"
+              color="gray"
+              variant="ghost"
+              size="sm"
+              @click="$emit('resolve')"
+            >
+              Resolver
+            </UButton>
+            <UButton
+              v-else
+              :loading="resolving"
+              icon="i-heroicons-arrow-uturn-left"
+              color="gray"
+              variant="ghost"
+              size="sm"
+              @click="$emit('resolve', 'open')"
+            >
+              Reabrir
+            </UButton>
+          </div>
         </div>
       </div>
 
@@ -334,6 +326,7 @@
 <script setup lang="ts">
 import type { Conversation, Message } from '~/types/chat.types'
 import MessageItem from './MessageItem.vue'
+import ConversationAssignment from './ConversationAssignment.vue'
 
 const props = defineProps<{
   conversation: Conversation | null

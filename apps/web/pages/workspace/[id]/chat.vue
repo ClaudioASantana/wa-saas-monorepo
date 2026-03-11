@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Conversation, Message, Agent, AgentPresenceEvent, AgentTypingEvent, Tag } from '~/types/chat.types'
+import type { Conversation, Message, Agent, AgentPresenceEvent, AgentTypingEvent, Tag, ConversationStatus } from '~/types/chat.types'
 import ChatConversationList from '~/components/chat/ConversationList.vue'
 import ChatWindow from '~/components/chat/ChatWindow.vue'
 import ContactSidebar from '~/components/chat/ContactSidebar.vue'
@@ -221,20 +221,25 @@ const sendMessage = async (text: string, isInternal: boolean = false) => {
   }
 }
 
-const resolveConversation = async (data: { conversationId: string }) => {
+const resolveConversation = async (data: { conversationId: string } | string, status: ConversationStatus = 'resolved') => {
+  const finalId = typeof data === 'string' ? data : data.conversationId
   resolving.value = true
   try {
-    await $fetch(`/api/chat/conversations/${data.conversationId}/status`, {
+    await $fetch(`/api/chat/conversations/${finalId}/status`, {
       method: 'PATCH',
-      body: { status: 'resolved' }
+      body: { status }
     })
     await refreshConv()
-    useToast().add({ title: 'Conversa resolvida!', icon: 'i-heroicons-check-circle', color: 'green' })
+    useToast().add({ 
+      title: status === 'resolved' ? 'Conversa resolvida!' : 'Conversa reaberta!', 
+      icon: 'i-heroicons-check-circle', 
+      color: 'green' 
+    })
   } catch (err: unknown) {
     const error = err as Error
-    console.error('Error resolving conversation:', error)
+    console.error('Error changing conversation status:', error)
     useToast().add({
-      title: 'Erro ao resolver conversa',
+      title: 'Erro ao alterar status',
       description: error.message,
       color: 'red'
     })

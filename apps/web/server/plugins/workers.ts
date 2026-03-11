@@ -11,7 +11,9 @@ export default defineNitroPlugin(() => {
   try {
     createMediaWorker(
       config.supabaseUrl as string,
-      config.supabaseServiceKey as string
+      config.supabaseServiceKey as string,
+      config.evolutionApiUrl as string,
+      config.evolutionApiKey as string
     )
     logger.info('[Workers] Media Worker initialized')
   } catch (error) {

@@ -215,292 +215,22 @@
 
       <!-- Respostas Rápidas Tab -->
       <template #respostas>
-        <div class="space-y-6 pt-4">
+        <div class="pt-4">
           <UCard>
-            <template #header>
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <UIcon
-                    name="i-heroicons-chat-bubble-left-right"
-                    class="w-5 h-5 text-primary-500"
-                  />
-                  <h3 class="text-base font-semibold text-gray-900 dark:text-white">
-                    Respostas Rápidas
-                  </h3>
-                </div>
-                <UButton
-                  size="sm"
-                  variant="soft"
-                  icon="i-heroicons-plus"
-                  @click="openQuickReplyModal()"
-                >
-                  Nova Resposta
-                </UButton>
-              </div>
-            </template>
-            
-            <div
-              v-if="repliesPending"
-              class="space-y-3 p-4"
-            >
-              <USkeleton
-                v-for="i in 3"
-                :key="i"
-                class="h-14 w-full"
-              />
-            </div>
-            
-            <div
-              v-else-if="!replies?.length"
-              class="text-center py-10"
-            >
-              <UIcon
-                name="i-heroicons-chat-bubble-bottom-center-text"
-                class="w-10 h-10 text-slate-300 mb-2"
-              />
-              <p class="text-slate-500 text-sm">
-                Nenhuma resposta rápida cadastrada.
-              </p>
-            </div>
-
-            <div
-              v-else
-              class="divide-y divide-slate-100 dark:divide-slate-800"
-            >
-              <div
-                v-for="reply in replies"
-                :key="reply.id"
-                class="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 group transition-colors"
-              >
-                <div class="min-w-0 pr-4">
-                  <div class="flex items-center gap-2">
-                    <UBadge
-                      size="xs"
-                      color="gray"
-                      variant="soft"
-                      class="font-mono"
-                    >
-                      /{{ reply.shortcut }}
-                    </UBadge>
-                  </div>
-                  <p class="text-sm text-slate-600 dark:text-slate-400 truncate mt-1">
-                    {{ reply.content }}
-                  </p>
-                </div>
-                <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <UButton
-                    size="xs"
-                    variant="ghost"
-                    color="gray"
-                    icon="i-heroicons-pencil-square"
-                    @click="openQuickReplyModal(reply)"
-                  />
-                  <UButton
-                    size="xs"
-                    variant="ghost"
-                    color="red"
-                    icon="i-heroicons-trash"
-                    @click="deleteReply(reply.id)"
-                  />
-                </div>
-              </div>
-            </div>
+            <QuickRepliesManager :workspace-id="workspaceId" />
           </UCard>
         </div>
       </template>
 
       <!-- Tags Tab -->
       <template #tags>
-        <div class="space-y-6 pt-4">
+        <div class="pt-4">
           <UCard>
-            <template #header>
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <UIcon
-                    name="i-heroicons-tag"
-                    class="w-5 h-5 text-primary-500"
-                  />
-                  <h3 class="text-base font-semibold text-gray-900 dark:text-white">
-                    Etiquetas (Tags)
-                  </h3>
-                </div>
-                <UButton
-                  size="sm"
-                  variant="soft"
-                  icon="i-heroicons-plus"
-                  @click="openTagModal()"
-                >
-                  Nova Tag
-                </UButton>
-              </div>
-            </template>
-
-            <div
-              v-if="tagsPending"
-              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4"
-            >
-              <USkeleton
-                v-for="i in 6"
-                :key="i"
-                class="h-10 w-full"
-              />
-            </div>
-
-            <div
-              v-else-if="!allTags?.length"
-              class="text-center py-10"
-            >
-              <UIcon
-                name="i-heroicons-tag"
-                class="w-10 h-10 text-slate-300 mb-2"
-              />
-              <p class="text-slate-500 text-sm">
-                Nenhuma etiqueta cadastrada.
-              </p>
-            </div>
-
-            <div
-              v-else
-              class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
-            >
-              <div
-                v-for="tag in allTags"
-                :key="tag.id"
-                class="flex items-center justify-between p-2 pl-3 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-500/50 group transition-all"
-              >
-                <div class="flex items-center gap-2 overflow-hidden">
-                  <div
-                    class="w-3 h-3 rounded-full shrink-0"
-                    :style="{ backgroundColor: tag.color }"
-                  />
-                  <span class="text-sm font-medium truncate">{{ tag.name }}</span>
-                </div>
-                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <UButton
-                    size="xs"
-                    variant="ghost"
-                    color="gray"
-                    icon="i-heroicons-pencil-square"
-                    @click="openTagModal(tag)"
-                  />
-                  <UButton
-                    size="xs"
-                    variant="ghost"
-                    color="red"
-                    icon="i-heroicons-trash"
-                    @click="deleteTag(tag.id)"
-                  />
-                </div>
-              </div>
-            </div>
+            <TagsManager :workspace-id="workspaceId" />
           </UCard>
         </div>
       </template>
     </UTabs>
-
-    <!-- Modals -->
-    <UModal v-model="quickReplyModal.isOpen">
-      <UCard>
-        <template #header>
-          <h3 class="font-bold">
-            {{ quickReplyModal.id ? 'Editar' : 'Nova' }} Resposta Rápida
-          </h3>
-        </template>
-        <form
-          class="space-y-4"
-          @submit.prevent="saveQuickReply"
-        >
-          <UFormGroup
-            label="Atalho"
-            help="Ex: ola, preco, tchau (será usado com /)"
-          >
-            <UInput
-              v-model="quickReplyModal.shortcut"
-              placeholder="ex: ola"
-              icon="i-heroicons-at-symbol"
-            />
-          </UFormGroup>
-          <UFormGroup
-            label="Conteúdo"
-            help="Use {contato} para o nome do cliente"
-          >
-            <UTextarea
-              v-model="quickReplyModal.content"
-              placeholder="Olá {contato}, como posso ajudar?"
-            />
-          </UFormGroup>
-          <div class="flex justify-end gap-3">
-            <UButton
-              variant="ghost"
-              color="gray"
-              @click="quickReplyModal.isOpen = false"
-            >
-              Cancelar
-            </UButton>
-            <UButton
-              color="primary"
-              type="submit"
-              :loading="quickReplyModal.loading"
-            >
-              Salvar
-            </UButton>
-          </div>
-        </form>
-      </UCard>
-    </UModal>
-
-    <UModal v-model="tagModal.isOpen">
-      <UCard>
-        <template #header>
-          <h3 class="font-bold">
-            {{ tagModal.id ? 'Editar' : 'Nova' }} Etiqueta
-          </h3>
-        </template>
-        <form
-          class="space-y-4"
-          @submit.prevent="saveTag"
-        >
-          <UFormGroup label="Nome da Tag">
-            <UInput
-              v-model="tagModal.name"
-              placeholder="Ex: Lead Quente"
-              icon="i-heroicons-tag"
-            />
-          </UFormGroup>
-          <UFormGroup label="Cor">
-            <div class="flex items-center gap-3">
-              <UInput
-                v-model="tagModal.color"
-                type="color"
-                class="w-16 h-10 p-0"
-                :ui="{ base: 'p-0 h-10 overflow-hidden' }"
-              />
-              <UInput
-                v-model="tagModal.color"
-                placeholder="#000000"
-                class="flex-1"
-              />
-            </div>
-          </UFormGroup>
-          <div class="flex justify-end gap-3">
-            <UButton
-              variant="ghost"
-              color="gray"
-              @click="tagModal.isOpen = false"
-            >
-              Cancelar
-            </UButton>
-            <UButton
-              color="primary"
-              type="submit"
-              :loading="tagModal.loading"
-            >
-              Salvar
-            </UButton>
-          </div>
-        </form>
-      </UCard>
-    </UModal>
 
     <!-- Delete Confirmation Modal (Workspace) -->
     <UModal
@@ -564,7 +294,8 @@
 </template>
 
 <script setup lang="ts">
-import type { Tag } from '~/types/chat.types'
+import QuickRepliesManager from '~/components/admin/QuickRepliesManager.vue'
+import TagsManager from '~/components/admin/TagsManager.vue'
 
 definePageMeta({
   layout: 'workspace',
@@ -682,134 +413,6 @@ const inviteMember = async () => {
   }
 }
 
-// ── Quick Replies ─────────────────────────────────────────────────────────────
-interface QuickReply {
-  id: string
-  shortcut: string
-  content: string
-}
-
-const { data: replies, pending: repliesPending, refresh: refreshReplies } = await useAsyncData(
-  `quick-replies-${workspaceId}`,
-  () => $fetch<QuickReply[]>(`/api/workspace/${workspaceId}/quick-replies`)
-)
-
-const quickReplyModal = ref({
-  isOpen: false,
-  loading: false,
-  id: '',
-  shortcut: '',
-  content: ''
-})
-
-const openQuickReplyModal = (reply?: QuickReply) => {
-  quickReplyModal.value = {
-    isOpen: true,
-    loading: false,
-    id: reply?.id || '',
-    shortcut: reply?.shortcut || '',
-    content: reply?.content || ''
-  }
-}
-
-const saveQuickReply = async () => {
-  if (!quickReplyModal.value.shortcut || !quickReplyModal.value.content) return
-  quickReplyModal.value.loading = true
-  try {
-    const url = quickReplyModal.value.id 
-      ? `/api/workspace/${workspaceId}/quick-replies/${quickReplyModal.value.id}`
-      : `/api/workspace/${workspaceId}/quick-replies`
-    
-    await $fetch(url, {
-      method: quickReplyModal.value.id ? 'PATCH' : 'POST',
-      body: {
-        shortcut: quickReplyModal.value.shortcut,
-        content: quickReplyModal.value.content
-      }
-    })
-    
-    useToast().add({ title: 'Resposta rápida salva!', icon: 'i-heroicons-check-circle' })
-    quickReplyModal.value.isOpen = false
-    refreshReplies()
-  } catch (e: any) {
-    useToast().add({ title: 'Erro ao salvar', description: e.statusMessage, color: 'red' })
-  } finally {
-    quickReplyModal.value.loading = false
-  }
-}
-
-const deleteReply = async (id: string) => {
-  if (!confirm('Excluir esta resposta rápida?')) return
-  try {
-    await $fetch(`/api/workspace/${workspaceId}/quick-replies/${id}`, { method: 'DELETE' })
-    useToast().add({ title: 'Resposta excluída', icon: 'i-heroicons-trash' })
-    refreshReplies()
-  } catch (e: any) {
-    useToast().add({ title: 'Erro ao excluir', description: e.statusMessage, color: 'red' })
-  }
-}
-
-// ── Tags ──────────────────────────────────────────────────────────────────────
-const { data: allTags, pending: tagsPending, refresh: refreshTags } = await useAsyncData(
-  `tags-${workspaceId}`,
-  () => $fetch<Tag[]>(`/api/workspace/${workspaceId}/tags`)
-)
-
-const tagModal = ref({
-  isOpen: false,
-  loading: false,
-  id: '',
-  name: '',
-  color: '#3b82f6'
-})
-
-const openTagModal = (tag?: Tag) => {
-  tagModal.value = {
-    isOpen: true,
-    loading: false,
-    id: tag?.id || '',
-    name: tag?.name || '',
-    color: tag?.color || '#3b82f6'
-  }
-}
-
-const saveTag = async () => {
-  if (!tagModal.value.name) return
-  tagModal.value.loading = true
-  try {
-    const url = tagModal.value.id 
-      ? `/api/workspace/${workspaceId}/tags/${tagModal.value.id}`
-      : `/api/workspace/${workspaceId}/tags`
-    
-    await $fetch(url, {
-      method: tagModal.value.id ? 'PATCH' : 'POST',
-      body: {
-        name: tagModal.value.name,
-        color: tagModal.value.color
-      }
-    })
-    
-    useToast().add({ title: 'Etiqueta salva!', icon: 'i-heroicons-check-circle' })
-    tagModal.value.isOpen = false
-    refreshTags()
-  } catch (e: any) {
-    useToast().add({ title: 'Erro ao salvar', description: e.statusMessage, color: 'red' })
-  } finally {
-    tagModal.value.loading = false
-  }
-}
-
-const deleteTag = async (id: string) => {
-  if (!confirm('Excluir esta etiqueta?')) return
-  try {
-    await $fetch(`/api/workspace/${workspaceId}/tags/${id}`, { method: 'DELETE' })
-    useToast().add({ title: 'Etiqueta excluída', icon: 'i-heroicons-trash' })
-    refreshTags()
-  } catch (e: any) {
-    useToast().add({ title: 'Erro ao excluir', description: e.statusMessage, color: 'red' })
-  }
-}
-
 // ── Delete Workspace ──────────────────────────────────────────────────────────
 const isDeleteModalOpen = ref(false)
 const deleteConfirmName = ref('')
@@ -818,20 +421,23 @@ const deleting = ref(false)
 const deleteWorkspace = async () => {
   if (deleteConfirmName.value !== settings.value.name) return
   deleting.value = true
-  const { error } = await supabase.from('workspaces').delete().eq('id', workspaceId)
-  deleting.value = false
-
-  if (error) {
-    useToast().add({ title: 'Erro ao excluir workspace', color: 'red', icon: 'i-heroicons-x-circle' })
-  } else {
-    isDeleteModalOpen.value = false
+  try {
+    const { error } = await supabase.from('workspaces').delete().eq('id', workspaceId)
+    if (error) throw error
+    
     useToast().add({
       title: 'Workspace excluído',
       description: 'Todos os dados foram removidos permanentemente.',
       icon: 'i-heroicons-trash',
       color: 'gray',
     })
+    
     await router.push('/')
+  } catch (err) {
+    console.error('Error deleting workspace:', err)
+    useToast().add({ title: 'Erro ao excluir workspace', color: 'red' })
+  } finally {
+    deleting.value = false
   }
 }
 </script>
