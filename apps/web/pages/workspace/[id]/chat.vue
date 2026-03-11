@@ -499,9 +499,26 @@ const subscribeToMessages = (conversationId: string) => {
       },
       (payload) => {
         const newMsg = payload.new as Message
-        // Inject directly — no extra round-trip to the DB
         if (messages.value && !messages.value.find((m) => m.id === newMsg.id)) {
           messages.value = [...messages.value, newMsg]
+        }
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`,
+      },
+      (payload) => {
+        const updatedMsg = payload.new as Message
+        if (messages.value) {
+          const index = messages.value.findIndex((m) => m.id === updatedMsg.id)
+          if (index !== -1) {
+            messages.value[index] = { ...messages.value[index], ...updatedMsg }
+          }
         }
       }
     )

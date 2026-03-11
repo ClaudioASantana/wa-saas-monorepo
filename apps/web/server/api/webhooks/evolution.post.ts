@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { mediaQueue } from '../../utils/media-queue'
 
 // Evolution API webhook payload types
 interface EvolutionMessage {
@@ -167,69 +168,45 @@ export default defineEventHandler(async (event) => {
   const contentMsg = messageData.message
   let msgType = 'text'
   let content = ''
-  let mediaUrl: string | null = null
 
   if (contentMsg?.conversation) {
     content = contentMsg.conversation
   } else if (contentMsg?.extendedTextMessage?.text) {
     content = contentMsg.extendedTextMessage.text
-  } else if (contentMsg?.imageMessage) {
-    msgType = 'image'
-    content = contentMsg.imageMessage.caption || '📷 Imagem'
-    // Evolution v2 often puts base64 at payload.data.base64 or in the message itself
-    const base64Data = messageData.base64 || contentMsg.imageMessage.base64 || payload.data?.base64
+  } else if (contentMsg?.imageMessage || contentMsg?.audioMessage) {
+    const isImage = !!contentMsg.imageMessage
+    msgType = isImage ? 'image' : 'audio'
+    content = isImage ? (contentMsg.imageMessage.caption || '📷 Imagem') : '🎤 Áudio'
     
-    if (!base64Data) {
-      console.log('[Evolution Webhook] Full payload data keys:', Object.keys(payload.data || {}))
-      console.log('[Evolution Webhook] Message data keys:', Object.keys(messageData || {}))
-    }
+    // ⚡ NEW ASYNC PIPELINE (Story 0.5)
+    // We don't wait for the upload here. We just record the intent and queue it.
+    const mediaId = isImage ? contentMsg.imageMessage.url : contentMsg.audioMessage.url // Evolution uses 'url' or 'directPath'
+    // Actually Evolution v2 returns media metadata. Let's get the ID if available or just use the whole message data.
     
-    if (base64Data) {
-      try {
-        const fileName = `${tenantId}/${messageId}.jpg`
-        const buffer = Buffer.from(base64Data, 'base64')
-        console.log(`[Evolution Webhook] Uploading image: ${fileName} (${buffer.length} bytes)`)
-        
-        const { error: uploadError } = await supabase.storage
-          .from('chat-media')
-          .upload(fileName, buffer, { contentType: 'image/jpeg', upsert: true })
-        
-        if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage.from('chat-media').getPublicUrl(fileName)
-          mediaUrl = publicUrl
-          console.log(`[Evolution Webhook] Image uploaded: ${mediaUrl}`)
-        } else {
-          console.error('[Evolution Webhook] Image upload error:', uploadError)
-        }
-      } catch (e) {
-        console.error('[Evolution Webhook] Buffer error:', e)
-      }
-    } else {
-      console.warn('[Evolution Webhook] Image message received but no base64 found. Make sure "Always Send Media Base64" is enabled in instance settings.')
-    }
-  } else if (contentMsg?.audioMessage) {
-    msgType = 'audio'
-    content = '🎤 Áudio'
-    const base64Data = messageData.base64 || contentMsg.audioMessage.base64 || payload.data?.base64
+    try {
+      // 1. Insert into media_files tracking table
+      await supabase.from('media_files').insert({
+        tenant_id: tenantId,
+        message_id: messageId,
+        media_id: mediaId || 'unknown',
+        mime_type: isImage ? 'image/jpeg' : 'audio/ogg',
+        status: 'pending'
+      })
 
-    if (base64Data) {
-      try {
-        const fileName = `${tenantId}/${messageId}.ogg`
-        const buffer = Buffer.from(base64Data, 'base64')
-        console.log(`[Evolution Webhook] Uploading audio: ${fileName} (${buffer.length} bytes)`)
+      // 2. Enqueue job
+      await mediaQueue.add('process-media', {
+        tenantId,
+        messageId,
+        mediaId: mediaId || messageId, // use messageId as fallback
+        mimeType: isImage ? 'image/jpeg' : 'audio/ogg',
+        evolutionInstanceId: instanceId,
+        // If we have base64 already, we could pass it, but better fetch it in worker to keep Redis light
+        // base64: messageData.base64
+      })
 
-        const { error: uploadError } = await supabase.storage
-          .from('chat-media')
-          .upload(fileName, buffer, { contentType: 'audio/ogg', upsert: true })
-        
-        if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage.from('chat-media').getPublicUrl(fileName)
-          mediaUrl = publicUrl
-          console.log(`[Evolution Webhook] Audio uploaded: ${mediaUrl}`)
-        }
-      } catch (e) {
-        console.error('[Evolution Webhook] Audio buffer error:', e)
-      }
+      console.log(`[Evolution Webhook] Media job enqueued: ${messageId}`)
+    } catch (err) {
+      console.error('[Evolution Webhook] Failed to enqueue media job:', err)
     }
   }
  else if (contentMsg?.documentMessage) {
@@ -278,7 +255,7 @@ export default defineEventHandler(async (event) => {
     .eq('id', conversation.id)
 
   // 6. Insert message (uses 'content' and 'inbound' direction)
-  console.log(`[Evolution Webhook] Inserting message: type=${msgType}, content="${content}", mediaUrl=${mediaUrl}`)
+  console.log(`[Evolution Webhook] Inserting message: type=${msgType}, content="${content}"`)
   
   const { error: insertError } = await supabase.from('messages').insert({
     conversation_id: conversation.id,
@@ -287,7 +264,6 @@ export default defineEventHandler(async (event) => {
     direction: 'inbound',
     type: msgType,
     content,
-    media_url: mediaUrl,
     sender_name: senderName,
     sent_at: now,
   })
