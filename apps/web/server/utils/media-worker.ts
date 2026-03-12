@@ -13,7 +13,7 @@ export function createMediaWorker(
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   const worker = new Worker(
-    'media-processing',
+    'media-uploads',
     async (job: Job) => {
       const { tenantId, messageId, mediaId, mimeType, evolutionInstanceId } = job.data
       

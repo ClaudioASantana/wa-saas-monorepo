@@ -1,116 +1,130 @@
 import { Server } from 'socket.io'
 import { setIoInstance } from '../utils/socket'
 import { logger } from '../utils/logger'
-import jwt from 'jsonwebtoken'
+import { createClient } from '@supabase/supabase-js'
 
 export default defineNitroPlugin((nitroApp) => {
-  // Nitro plugin only runs on the server
-  // We attach to the 'engine' which is the underlying http server in most runtimes
+  const GLOBAL_KEY = '__wa_saas_socket_io_initialized__'
+  const global = globalThis as any
   
-  // Note: In Nuxt 3/Nitro, accessing the raw http server can be tricky depending on the provider.
-  // For local 'npm run dev', we use nitroApp.hooks.hook('listen') to get the server.
-  
-  nitroApp.hooks.hook('listen', (server) => {
-    logger.info('[Socket.IO] Nuxt listen hook triggered. Initializing Socket.IO...')
+  if (global[GLOBAL_KEY]) {
+    logger.debug('[Socket.IO] Plugin already initialized, skipping')
+    return
+  }
+
+  // Initialize Supabase admin client for verification
+  const supabase = createClient(
+    process.env.SUPABASE_URL || '',
+    process.env.SUPABASE_KEY || ''
+  )
+
+  const initSocketIo = (server: any) => {
+    if (global[GLOBAL_KEY]) return
     
-    const io = new Server(server, {
-      cors: {
-        origin: '*', // Adjust for production
-        methods: ['GET', 'POST']
-      },
-      transports: ['websocket', 'polling']
-    })
+    logger.info('[Socket.IO] Initializing Server with provided HTTP server instance...')
+    
+    try {
+      const io = new Server(server, {
+        cors: {
+          origin: '*',
+          methods: ['GET', 'POST']
+        },
+        transports: ['websocket', 'polling'],
+        allowEIO3: true,
+        pingTimeout: 60000,
+        pingInterval: 25000
+      })
 
-    // JWT Middleware
-    io.use((socket, next) => {
-      const token = socket.handshake.auth.token || socket.handshake.query.token
-      
-      if (!token) {
-        logger.warn({ socketId: socket.id }, '[Socket.IO] Connection rejected: No token')
-        return next(new Error('Authentication error'))
-      }
-
-      try {
-        // We use the Supabase Service Key or JWT Secret to verify
-        // In local dev, Supabase usually uses 'super-secret-jwt-token-with-at-least-32-characters-long' 
-        // but we should use the one from config.
-        // Supabase JWT secret is often the same as the service key or a specific secret
-        // For project 'wnwmkaigcpcvojtdpvug', we'll try to use a generic 'JWT_SECRET' if available
-        // but for now, we'll use a placeholder or assume the user has it in .env
-        const secret = process.env.SUPABASE_JWT_SECRET || 'super-secret-jwt-token-with-at-least-32-characters-long'
+      // JWT Middleware (using Supabase API for verification)
+      io.use(async (socket, next) => {
+        const token = socket.handshake.auth.token || socket.handshake.query.token
         
-        const decoded = jwt.verify(token, secret) as jwt.JwtPayload
-        
-        // Extrair tenant_id e agent_id do payload do Supabase/JWT
-        // O Supabase coloca informacoes no app_metadata ou user_metadata
-        socket.data.userId = decoded.sub
-        socket.data.tenantId = decoded.app_metadata?.tenant_id || decoded.user_metadata?.tenant_id
-        
-        if (!socket.data.tenantId) {
-          logger.warn({ userId: socket.data.userId }, '[Socket.IO] Connection rejected: No tenant_id in JWT')
-          return next(new Error('No tenant access'))
+        if (!token) {
+          logger.warn({ socketId: socket.id }, '[Socket.IO] Connection rejected: No token')
+          return next(new Error('Authentication error'))
         }
 
-        next()
-      } catch (err) {
-        logger.error({ err }, '[Socket.IO] JWT Verification failed')
-        next(new Error('Authentication error'))
+        try {
+          // Verify token against Supabase API
+          const { data: { user }, error } = await supabase.auth.getUser(token)
+
+          if (error || !user) {
+            logger.error({ 
+              err: error?.message, 
+              token: token.substring(0, 20) + '...' 
+            }, '[Socket.IO] Supabase auth failed')
+            return next(new Error('Authentication error'))
+          }
+          
+          socket.data.userId = user.id
+          socket.data.tenantId = user.app_metadata?.tenant_id || user.user_metadata?.tenant_id
+          
+          if (!socket.data.tenantId) {
+            logger.warn({ userId: socket.data.userId, metadata: user.app_metadata }, '[Socket.IO] Connection rejected: No tenant_id in user metadata')
+            return next(new Error('No tenant access'))
+          }
+
+          next()
+        } catch (err: any) {
+          logger.error({ 
+            err: err.message,
+            token: token.substring(0, 20) + '...'
+          }, '[Socket.IO] Unexpected auth error')
+          next(new Error('Authentication error'))
+        }
+      })
+
+      io.on('connection', (socket) => {
+        const { tenantId, userId } = socket.data
+        logger.info({ socketId: socket.id, tenantId, userId }, '[Socket.IO] User connected')
+        socket.join(`tenant:${tenantId}`)
+        socket.emit('connection:ack', { sessionId: socket.id, tenantId })
+
+        socket.on('join:conversation', (conversationId: string) => {
+          socket.join(`conversation:${conversationId}`)
+        })
+
+        socket.on('leave:conversation', (conversationId: string) => {
+          socket.leave(`conversation:${conversationId}`)
+        })
+
+        socket.on('typing', (data: { conversationId: string, isTyping: boolean }) => {
+          socket.to(`conversation:${data.conversationId}`).emit('agent:typing', {
+            agentId: userId,
+            conversationId: data.conversationId,
+            isTyping: data.isTyping
+          })
+        })
+
+        socket.on('disconnect', (reason) => {
+          logger.info({ socketId: socket.id, reason }, '[Socket.IO] User disconnected')
+        })
+      })
+
+      setIoInstance(io)
+      global[GLOBAL_KEY] = true
+      logger.info('[Socket.IO] Server initialized and ready')
+    } catch (err) {
+      logger.error({ err }, '[Socket.IO] Critical initialization failure')
+    }
+  }
+
+  // Hook 1: Standard Nitro listen (Works in production and some dev setups)
+  ;(nitroApp.hooks as any).hook('listen', (server: any) => {
+    logger.info('[Socket.IO] listen hook triggered')
+    initSocketIo(server)
+  })
+
+  // Hook 2: Fallback for Dev mode (Capture server from first request)
+  if (process.dev) {
+    ;(nitroApp.hooks as any).hook('request', (event: any) => {
+      if (!global[GLOBAL_KEY]) {
+        const server = event.node?.res?.socket?.server
+        if (server) {
+          logger.info('[Socket.IO] server instance captured from request')
+          initSocketIo(server)
+        }
       }
     })
-
-    io.on('connection', (socket) => {
-      const { tenantId, userId } = socket.data
-      logger.info({ socketId: socket.id, tenantId, userId }, '[Socket.IO] User connected')
-
-      // Join tenant room for isolation
-      socket.join(`tenant:${tenantId}`)
-
-      socket.emit('connection:ack', {
-        sessionId: socket.id,
-        tenantId
-      })
-
-      // Presence: Join conversation room
-      socket.on('join:conversation', (conversationId: string) => {
-        socket.join(`conversation:${conversationId}`)
-        logger.debug({ socketId: socket.id, conversationId }, '[Socket.IO] Agent joined conversation room')
-        
-        // Notify others in the room
-        socket.to(`conversation:${conversationId}`).emit('agent:joined', {
-          agentId: userId,
-          conversationId
-        })
-      })
-
-      // Presence: Leave conversation room
-      socket.on('leave:conversation', (conversationId: string) => {
-        socket.leave(`conversation:${conversationId}`)
-        logger.debug({ socketId: socket.id, conversationId }, '[Socket.IO] Agent left conversation room')
-        
-        socket.to(`conversation:${conversationId}`).emit('agent:left', {
-          agentId: userId,
-          conversationId
-        })
-      })
-
-      // Typing indicators
-      socket.on('typing', (data: { conversationId: string, isTyping: boolean }) => {
-        socket.to(`conversation:${data.conversationId}`).emit('agent:typing', {
-          agentId: userId,
-          conversationId: data.conversationId,
-          isTyping: data.isTyping
-        })
-      })
-
-      socket.on('disconnect', () => {
-        logger.info({ socketId: socket.id }, '[Socket.IO] User disconnected')
-        // Socket.IO automatically leaves all rooms on disconnect, 
-        // but we might want to notify others if we tracked specifically.
-        // For now, simplicity is preferred.
-      })
-    })
-
-    setIoInstance(io)
-    logger.info('[Socket.IO] Server initialized and ready')
-  })
+  }
 })

@@ -106,24 +106,43 @@ async function handleMessageUpsert(
     content = contentMsg.conversation
   } else if (contentMsg?.extendedTextMessage?.text) {
     content = contentMsg.extendedTextMessage.text
-  } else if (contentMsg?.imageMessage || contentMsg?.audioMessage) {
+  } else if (contentMsg?.imageMessage || contentMsg?.audioMessage || contentMsg?.documentMessage) {
     const isImage = !!contentMsg.imageMessage
-    msgType = isImage ? 'image' : 'audio'
-    content = isImage ? (contentMsg.imageMessage.caption || '📷 Imagem') : '🎤 Áudio'
+    const isAudio = !!contentMsg.audioMessage
     
-    const mediaId = isImage ? contentMsg.imageMessage.url : contentMsg.audioMessage.url
+    msgType = isImage ? 'image' : (isAudio ? 'audio' : 'document')
+    
+    if (isImage) {
+      content = contentMsg.imageMessage.caption || '📷 Imagem'
+    } else if (isAudio) {
+      content = '🎤 Áudio'
+    } else {
+      content = `📎 ${contentMsg.documentMessage.fileName || 'Documento'}`
+    }
+    
+    const mediaId = isImage 
+      ? contentMsg.imageMessage.url 
+      : (isAudio ? contentMsg.audioMessage.url : contentMsg.documentMessage.url)
+    
+    const mimeType = isImage 
+      ? 'image/jpeg' 
+      : (isAudio ? 'audio/ogg' : (contentMsg.documentMessage.mimetype || 'application/pdf'))
+    
     await supabase.from('media_files').insert({
-      tenant_id: tenantId, message_id: messageId, media_id: mediaId || 'unknown',
-      mime_type: isImage ? 'image/jpeg' : 'audio/ogg', status: 'pending'
+      tenant_id: tenantId, 
+      message_id: messageId, 
+      media_id: mediaId || 'unknown',
+      mime_type: mimeType, 
+      status: 'pending'
     })
 
     await mediaQueue.add('process-media', {
-      tenantId, messageId, mediaId: mediaId || messageId,
-      mimeType: isImage ? 'image/jpeg' : 'audio/ogg', evolutionInstanceId: instanceId,
+      tenantId, 
+      messageId, 
+      mediaId: mediaId || messageId,
+      mimeType: mimeType, 
+      evolutionInstanceId: instanceId,
     })
-  } else if (contentMsg?.documentMessage) {
-    msgType = 'document'
-    content = `📎 ${contentMsg.documentMessage.fileName || 'Documento'}`
   }
 
   // 4. Upsert Conversation via Service

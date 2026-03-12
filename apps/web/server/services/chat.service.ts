@@ -146,6 +146,32 @@ export class ChatService {
     this.notifyStatusChanged(tenantId, conversationId, status, new Date().toISOString(), data?.agent_id)
   }
 
+  async getOrCreateAgent(email: string, tenantId: string, name: string): Promise<any> {
+    const { data: existingAgent } = await this.supabase
+      .from('agents')
+      .select('id, name, email, role')
+      .eq('email', email)
+      .eq('tenant_id', tenantId)
+      .single()
+
+    if (existingAgent) return existingAgent
+
+    const { data: newAgent, error } = await this.supabase
+      .from('agents')
+      .insert({
+        email,
+        tenant_id: tenantId,
+        name,
+        role: 'agent',
+        status: 'active'
+      })
+      .select('id, name, email, role')
+      .single()
+
+    if (error) throw error
+    return newAgent
+  }
+
   private notifyNewMessage(tenantId: string, event: MessageNewEvent) {
     emitToTenant(tenantId, 'message:new', event)
   }
