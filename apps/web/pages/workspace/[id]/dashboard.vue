@@ -177,11 +177,11 @@ const {
       .eq('workspace_id', workspaceId)
       .eq('status', 'open'),
 
-    // Mensagens de hoje
+    // Mensagens de hoje (via conversations para filtrar por workspace)
     supabase
       .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
+      .select('id, conversations!inner(workspace_id)', { count: 'exact', head: true })
+      .eq('conversations.workspace_id', workspaceId)
       .gte('created_at', todayStart.toISOString()),
 
     // Total de contatos únicos (via conversas)

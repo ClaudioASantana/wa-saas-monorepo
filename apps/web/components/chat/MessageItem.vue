@@ -8,8 +8,13 @@
     <!-- System Message -->
     <template v-if="message.type === 'system'">
       <div class="px-3 py-1 bg-slate-100 dark:bg-slate-800/50 rounded-full border border-slate-200 dark:border-slate-700">
-        <p class="text-[11px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-          <UIcon name="i-heroicons-information-circle" class="w-3.5 h-3.5" />
+        <p
+          class="text-[11px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1.5"
+        >
+          <UIcon
+            name="i-heroicons-information-circle"
+            class="w-3.5 h-3.5"
+          />
           {{ message.content }}
         </p>
       </div>
@@ -26,8 +31,14 @@
           message.is_internal ? '!bg-amber-100 dark:!bg-amber-900/30 !border-amber-200 dark:!border-amber-800 !text-amber-900 dark:!text-amber-100 !rounded-lg' : ''
         ]"
       >
-        <div v-if="message.is_internal" class="flex items-center gap-1 mb-1 opacity-70 underline decoration-amber-300 dark:decoration-amber-700 underline-offset-2">
-          <UIcon name="i-heroicons-lock-closed" class="w-3 h-3" />
+        <div
+          v-if="message.is_internal"
+          class="flex items-center gap-1 mb-1 opacity-70 underline decoration-amber-300 dark:decoration-amber-700 underline-offset-2"
+        >
+          <UIcon
+            name="i-heroicons-lock-closed"
+            class="w-3 h-3"
+          />
           <span class="text-[10px] font-bold uppercase">Nota Interna</span>
         </div>
 
@@ -42,10 +53,34 @@
         <img
           v-else-if="message.type === 'image' && message.media_url"
           :src="message.media_url"
-          class="rounded-md max-w-full mb-1"
+          class="rounded-md max-w-full mb-1 border border-slate-100 dark:border-slate-800"
         >
+        <!-- Document -->
+        <div
+          v-else-if="message.type === 'document' && message.media_url"
+          class="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-900/50 rounded border border-slate-100 dark:border-slate-800 mb-1"
+        >
+          <div class="w-10 h-10 flex-shrink-0 bg-red-100 dark:bg-red-900/30 flex items-center justify-center rounded text-red-600 dark:text-red-400">
+            <UIcon name="i-heroicons-document-text" class="w-6 h-6" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-medium truncate" :class="isOutbound ? 'text-slate-900 dark:text-slate-200' : ''">
+              {{ message.body || message.content || 'Documento' }}
+            </p>
+            <a
+              :href="message.media_url"
+              target="_blank"
+              class="text-[10px] text-primary-500 hover:underline font-bold uppercase tracking-wider"
+            >
+              Abrir Arquivo
+            </a>
+          </div>
+        </div>
         <!-- Text -->
-        <p class="text-sm whitespace-pre-wrap break-words">
+        <p
+          v-else
+          class="text-sm whitespace-pre-wrap break-words"
+        >
           {{ message.body || message.content }}
         </p>
         <span class="text-[10px] mt-1 block text-right opacity-60">
