@@ -19,8 +19,9 @@ Implementar a página `/workspace/[id]/contatos` que permite ao agente visualiza
 | Campo "Status" | Migration `is_active boolean DEFAULT true` | Campo explícito, sem lógica derivada |
 | Layout de detalhe | Modal centralizado | Padrão já usado no CRM e Configurações |
 | Abordagem | Página + 2 componentes | Segue padrão do projeto, sem over-engineering |
-| Busca | Filtro local com debounce 300ms | Suficiente para 50 registros por página |
+| Busca | Filtro local com debounce 300ms | Suficiente para 50 registros por página — **limitação aceita**: a busca opera sobre os 50 registros da página atual, não sobre toda a base. Para uso atual do produto isso é suficiente; busca server-side é fora de escopo desta story. |
 | Exportação CSV | Client-side, sem lib externa | Simples, sem dependência adicional |
+| Toggle Status no modal | Incluído em AC3 (extensão natural) | AC3 lista Nome/Telefone/Notas como campos mínimos; `is_active` é adicionado pois a migration foi criada para isso e seria inconsistente não expor na edição |
 
 ---
 
@@ -81,7 +82,8 @@ const { data, pending } = await useAsyncData(`contacts-${workspaceId}`, async ()
 
 ### Endpoint PATCH
 
-**Rota:** `PATCH /api/contacts/[id]`
+**Arquivo:** `apps/web/server/api/contacts/[id].patch.ts`
+**Rota Nuxt 3:** `PATCH /api/contacts/:id` (file-based routing — o `[id]` no nome do arquivo mapeia para o segmento dinâmico)
 
 **Schema Zod:**
 ```typescript
@@ -121,8 +123,8 @@ Emits:
 - `page-change(page: number)`
 
 Funcionalidades:
-- Campo de busca com debounce 300ms filtrando `name` e `phone` no array local
-- Tabela com colunas: Nome (avatar + nome), Telefone, Última Conversa (formatada), Status (UBadge verde/cinza), Notas (truncado em 40 chars)
+- Campo de busca com debounce 300ms filtrando `name` e `phone` no array local (50 registros da página atual)
+- Tabela com colunas: Nome (avatar + nome), Telefone, Última Conversa (formatada), Status (UBadge verde/cinza), Notas (truncado — `class="truncate max-w-[200px]"`, máximo visível ~40 chars)
 - Skeleton rows (5 linhas) durante loading
 - `UPagination` no rodapé
 
@@ -137,9 +139,9 @@ Emits:
 - `saved(contact: Contact)`
 
 Funcionalidades:
-- Campos editáveis: Nome (UInput), Telefone (UInput), Notas (UTextarea), Status (UToggle)
-- Botão "Salvar" → `$fetch('PATCH /api/contacts/[id]', body)` → emit `saved` → toast "Contato atualizado"
-- Botão "Ver Conversa" → `navigateTo('/workspace/${workspaceId}/chat?contact=${contact.id}')`
+- Campos editáveis: Nome (UInput), Telefone (UInput), Notas (UTextarea), Status (UToggle com label "Ativo")
+- Botão "Salvar" → `$fetch('/api/contacts/${contact.id}', { method: 'PATCH', body })` → emit `saved` → toast "Contato atualizado"
+- Botão "Ver Conversa" → `navigateTo('/workspace/${workspaceId}/chat?contactId=${contact.id}')` — a página de Chat já filtra por contactId via query param para pré-selecionar a conversa
 - Estado de loading no botão "Salvar" durante a requisição
 
 ---
