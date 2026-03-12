@@ -61,7 +61,6 @@ definePageMeta({
 const isLogin = ref(true)
 
 const switchTab = (val: boolean) => {
-  console.log('Switching tab to:', val ? 'Login' : 'Cadastro')
   isLogin.value = val
 }
 </script>
