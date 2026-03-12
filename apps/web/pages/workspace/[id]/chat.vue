@@ -158,10 +158,15 @@ const selectConversation = async (conv: Conversation) => {
 
   // Mark as read
   if (conv.unread_count > 0) {
-    await supabaseRaw.from('conversations').update({ unread_count: 0 }).eq('id', conv.id)
-    refreshConv()
+    try {
+      await supabaseRaw.from('conversations').update({ unread_count: 0 }).eq('id', conv.id)
+      refreshConv()
+    } catch (err) {
+      console.error('[Chat] Error marking as read:', err)
+    }
   }
 }
+
 
 const saveNotes = async (notes: string) => {
   if (!selectedConv.value?.contact?.id) return
@@ -221,23 +226,22 @@ const sendMessage = async (text: string, isInternal: boolean = false) => {
   }
 }
 
-const resolveConversation = async (data: { conversationId: string } | string, status: ConversationStatus = 'resolved') => {
-  const finalId = typeof data === 'string' ? data : data.conversationId
+const resolveConversation = async (status: ConversationStatus = 'resolved') => {
+  if (!selectedConv.value) return
   resolving.value = true
   try {
-    await $fetch(`/api/chat/conversations/${finalId}/status`, {
+    await $fetch(`/api/chat/conversations/${selectedConv.value.id}/status`, {
       method: 'PATCH',
       body: { status }
     })
     await refreshConv()
-    useToast().add({ 
-      title: status === 'resolved' ? 'Conversa resolvida!' : 'Conversa reaberta!', 
-      icon: 'i-heroicons-check-circle', 
-      color: 'green' 
+    useToast().add({
+      title: status === 'resolved' ? 'Conversa resolvida!' : 'Conversa reaberta!',
+      icon: 'i-heroicons-check-circle',
+      color: 'green'
     })
   } catch (err: unknown) {
     const error = err as Error
-    console.error('Error changing conversation status:', error)
     useToast().add({
       title: 'Erro ao alterar status',
       description: error.message,
@@ -368,14 +372,14 @@ onMounted(async () => {
   on('agent:left', handleAgentLeft)
   on('agent:typing', handleAgentTyping)
 
-  // Fetch current agent record
-  if (user.value?.email) {
-    const { data } = await supabase
-      .from('agents')
-      .select('id, name, email, role')
-      .eq('email', user.value.email)
-      .single()
-    if (data) currentAgent.value = data as any
+  // Fetch current agent record via auto-onboarding API
+  try {
+    const agent = await $fetch<Agent>('/api/chat/me', {
+      params: { workspaceId }
+    })
+    if (agent) currentAgent.value = agent
+  } catch (err) {
+    console.error('[Chat] Error fetching/creating agent:', err)
   }
 })
 

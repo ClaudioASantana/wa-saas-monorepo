@@ -92,35 +92,35 @@
                 {{ conv.contact?.name || conv.contact?.phone }}
               </h3>
               <span class="text-xs text-slate-500 shrink-0 ml-2">
-                {{ formatTime(conv.last_message_at) }}
+                <ClientOnly>{{ formatTime(conv.last_message_at) }}</ClientOnly>
               </span>
             </div>
             <div class="flex items-center justify-between">
-              <p
-                v-if="typingAgents[conv.id]?.size > 0"
-                class="text-sm text-primary-500 font-medium truncate flex-1 mr-2"
-              >
-                Digitando...
-              </p>
-              <p
-                v-else
-                class="text-sm text-slate-500 dark:text-slate-400 truncate flex-1 mr-2"
-              >
-                {{ conv.last_message_preview || '...' }}
-              </p>
+              <ClientOnly>
+                <p
+                  v-if="typingAgents[conv.id]?.size > 0"
+                  class="text-sm text-primary-500 font-medium truncate flex-1 mr-2"
+                >
+                  Digitando...
+                </p>
+                <p
+                  v-else
+                  class="text-sm text-slate-500 dark:text-slate-400 truncate flex-1 mr-2"
+                >
+                  {{ conv.last_message_preview || '...' }}
+                </p>
+              </ClientOnly>
               <div class="flex items-center justify-between mt-1">
                 <div class="flex flex-wrap gap-1 overflow-hidden">
                   <div
                     v-for="tagLink in conv.tags"
                     :key="tagLink.tag.id"
-                    v-tooltip="tagLink.tag.name"
                     class="w-2 h-2 rounded-full"
                     :style="{ backgroundColor: tagLink.tag.color }"
                   />
                 </div>
                 <UIcon
                   v-if="conv.agent_id"
-                  v-tooltip="conv.agent?.name || 'Atribuído'"
                   :name="conv.agent_id === currentAgentId ? 'i-heroicons-user-circle-20-solid' : 'i-heroicons-user-circle'"
                   class="w-4 h-4 shrink-0"
                   :class="conv.agent_id === currentAgentId ? 'text-primary-500' : 'text-slate-400'"

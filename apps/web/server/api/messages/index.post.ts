@@ -1,8 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
+import { serverSupabaseUser } from '#supabase/server'
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080'
 
 export default defineEventHandler(async (event) => {
+  const user = await serverSupabaseUser(event)
+  if (!user) {
+    throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+  }
+
   const body = await readBody(event)
   const { conversation_id, message, is_internal } = body
   
@@ -25,7 +31,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Conversation not found' })
   }
 
-  // @ts-expect-error - Supabase join types
   const channel = Array.isArray(conv.channel_data) ? conv.channel_data[0] : conv.channel_data
   const contact = Array.isArray(conv.contact) ? conv.contact[0] : conv.contact
 
@@ -56,26 +61,41 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const { data: msg, error: insertError } = await supabase.from('messages').insert({
-    conversation_id,
-    tenant_id: conv.tenant_id,
-    direction: 'outbound',
-    type: 'text', // Internal notes are still text or media, but with is_internal=true
-    content: message,
-    sender_name: 'Agente',
-    is_internal: !!is_internal,
-  }).select().single()
+  // 3. Insert message and notify via ChatService
+  const { ChatService } = await import('../../services/chat.service')
+  const chatService = new ChatService(supabase)
 
-  if (insertError) {
-    console.error(`[Message API] DB Insert Error:`, insertError)
-    throw createError({ statusCode: 500, statusMessage: `DB Insert Error: ${insertError.message}` })
+  // Resolve real agent name
+  let senderName = user.user_metadata?.full_name || user.email!.split('@')[0]
+  try {
+    const agent = await chatService.getOrCreateAgent(user.email!, conv.tenant_id, senderName)
+    if (agent?.name) senderName = agent.name
+  } catch {
+    // Fallback to user metadata name
   }
 
-  // 4. Update conversation last_message_at
-  await supabase.from('conversations').update({
-    last_message_at: new Date().toISOString(),
-    last_message_preview: message.substring(0, 100),
-  }).eq('id', conversation_id)
+  try {
+    const msg = await chatService.insertMessage({
+      conversationId: conversation_id,
+      tenantId: conv.tenant_id,
+      waMessageId: null,
+      direction: 'outbound',
+      type: 'text',
+      content: message,
+      senderName,
+      isInternal: !!is_internal
+    })
 
-  return msg
+  // 4. Update conversation last_message_at (ChatService.insertMessage notifies message:new, but we still update conv metadata)
+    await supabase.from('conversations').update({
+      last_message_at: new Date().toISOString(),
+      last_message_preview: message.substring(0, 100),
+    }).eq('id', conversation_id)
+
+    return msg
+  } catch (error) {
+    console.error(`[Message API] Error:`, error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    throw createError({ statusCode: 500, statusMessage: errorMessage })
+  }
 })

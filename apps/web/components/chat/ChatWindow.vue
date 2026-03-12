@@ -52,7 +52,9 @@
                   />
                   <template #panel>
                     <div class="p-2 w-48 space-y-2">
-                      <p class="text-[10px] font-bold text-slate-400 uppercase px-1">Tags</p>
+                      <p class="text-[10px] font-bold text-slate-400 uppercase px-1">
+                        Tags
+                      </p>
                       <div class="space-y-1">
                         <div
                           v-for="tag in allTags"
@@ -66,7 +68,10 @@
                             @click.stop
                             @update:model-value="toggleTag(tag.id)"
                           />
-                          <span class="text-xs" :style="{ color: tag.color }">#</span>
+                          <span
+                            class="text-xs"
+                            :style="{ color: tag.color }"
+                          >#</span>
                           <span class="text-xs flex-1 truncate">{{ tag.name }}</span>
                         </div>
                       </div>
@@ -206,95 +211,103 @@
         class="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 relative transition-colors duration-200"
         :class="{ 'bg-amber-50/50 dark:bg-amber-900/10 border-t-amber-200 dark:border-t-amber-800': isInternal }"
       >
-        <div v-if="isInternal" class="absolute top-0 left-0 right-0 h-1 bg-amber-400 dark:bg-amber-600" />
+        <div
+          v-if="isInternal"
+          class="absolute top-0 left-0 right-0 h-1 bg-amber-400 dark:bg-amber-600"
+        />
         
         <form
-          class="flex items-end space-x-2 max-w-4xl mx-auto"
+          class="flex items-end space-x-2 w-full"
           @submit.prevent="handleSend"
         >
-          <div class="flex-1 flex flex-col">
-            <div v-if="isInternal" class="flex items-center gap-1.5 mb-2 px-1">
-              <UIcon name="i-heroicons-pencil-square" class="w-4 h-4 text-amber-600" />
+          <div class="flex-1 flex flex-col min-w-0">
+            <div
+              v-if="isInternal"
+              class="flex items-center gap-1.5 mb-2 px-1"
+            >
+              <UIcon
+                name="i-heroicons-pencil-square"
+                class="w-4 h-4 text-amber-600"
+              />
               <span class="text-xs font-medium text-amber-700 dark:text-amber-400">Nota Interna (não enviada ao cliente)</span>
             </div>
-            <UPopover
-              v-model:open="showQuickReplies"
-              :popper="{ placement: 'top-start', strategy: 'fixed' }"
-              class="flex-1"
-            >
+            <div class="relative w-full">
               <UTextarea
                 ref="textareaRef"
                 v-model="input"
                 autoresize
                 :rows="1"
-                :maxrows="5"
                 :placeholder="isInternal ? 'Escrever nota interna...' : 'Digite uma mensagem... (Enter para enviar)'"
                 class="w-full"
-                :ui="{ base: isInternal ? ' ring-amber-400 focus:ring-amber-500' : '' }"
-                @keydown.enter.exact.prevent="handleSend"
-                @input="handleInput"
+                @keydown="handleKeyDown"
               />
 
-              <template #panel>
+              <!-- Quick Replies Panel (Manual) -->
+              <div
+                v-if="showQuickReplies"
+                class="absolute bottom-full left-0 mb-2 w-80 max-h-60 overflow-y-auto bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-800 rounded-lg z-50 transition-all"
+              >
                 <div
-                  class="w-80 max-h-60 overflow-y-auto bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 rounded-lg"
+                  class="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center sticky top-0 z-10"
                 >
-                  <div
-                    class="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center"
+                  <span
+                    class="text-xs font-semibold text-slate-500 uppercase tracking-wider"
+                  >Respostas Rápidas</span>
+                  <UKbd
+                    size="xs"
                   >
-                    <span
-                      class="text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                    >Respostas Rápidas</span>
-                    <UKbd
-                      size="xs"
-                    >
-                      /
-                    </UKbd>
-                  </div>
-                  <div
-                    v-if="loadingQuickReplies"
-                    class="p-4 flex justify-center"
-                  >
-                    <UIcon
-                      name="i-heroicons-arrow-path"
-                      class="w-5 h-5 animate-spin text-slate-400"
-                    />
-                  </div>
-                  <div
-                    v-else-if="filteredQuickReplies.length === 0"
-                    class="p-4 text-center text-sm text-slate-500"
-                  >
-                    Nenhum atalho encontrado.
-                  </div>
-                  <ul
-                    v-else
-                    class="p-1"
-                  >
-                    <li
-                      v-for="reply in filteredQuickReplies"
-                      :key="reply.id"
-                      class="px-3 py-2 text-sm cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded flex justify-between items-center group transition-colors"
-                      @click="selectQuickReply(reply)"
-                    >
-                      <div
-                        class="flex flex-col min-w-0 pr-4"
-                      >
-                        <span
-                          class="font-bold text-primary-600 dark:text-primary-400"
-                        >/{{ reply.shortcut }}</span>
-                        <span
-                          class="text-xs text-slate-500 truncate"
-                        >{{ reply.content }}</span>
-                      </div>
-                      <UIcon
-                        name="i-heroicons-chevron-right"
-                        class="w-4 h-4 text-slate-300 group-hover:text-primary-400 shrink-0"
-                      />
-                    </li>
-                  </ul>
+                    /
+                  </UKbd>
                 </div>
-              </template>
-            </UPopover>
+                <div
+                  v-if="loadingQuickReplies"
+                  class="p-4 flex justify-center"
+                >
+                  <UIcon
+                    name="i-heroicons-arrow-path"
+                    class="w-5 h-5 animate-spin text-slate-400"
+                  />
+                </div>
+                <div
+                  v-else-if="filteredQuickReplies.length === 0"
+                  class="p-4 text-center text-sm text-slate-500"
+                >
+                  Nenhum atalho encontrado.
+                </div>
+                <ul
+                  v-else
+                  class="p-1"
+                >
+                  <li
+                    v-for="(reply, index) in filteredQuickReplies"
+                    :key="reply.id"
+                    class="px-3 py-2 text-sm cursor-pointer rounded flex justify-between items-center group transition-colors"
+                    :class="[
+                      index === selectedIndex 
+                        ? 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300' 
+                        : 'hover:bg-primary-50 dark:hover:bg-primary-900/20'
+                    ]"
+                    @click="selectQuickReply(reply)"
+                  >
+                    <div
+                      class="flex flex-col min-w-0 pr-4"
+                    >
+                      <span
+                        class="font-bold"
+                        :class="index === selectedIndex ? 'text-primary-700' : 'text-primary-600 dark:text-primary-400'"
+                      >/{{ reply.shortcut }}</span>
+                      <span
+                        class="text-xs text-slate-500 truncate"
+                      >{{ reply.content }}</span>
+                    </div>
+                    <UIcon
+                      name="i-heroicons-chevron-right"
+                      class="w-4 h-4 text-slate-300 group-hover:text-primary-400 shrink-0"
+                    />
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
           
           <div class="flex items-center gap-2">
@@ -349,6 +362,9 @@ let typingTimeout: NodeJS.Timeout | null = null
 const isCurrentlyTyping = ref(false)
 
 watch(input, (val) => {
+  // Quick replies panel toggle
+  showQuickReplies.value = val.startsWith('/')
+
   if (!val.trim()) {
     if (isCurrentlyTyping.value) {
       isCurrentlyTyping.value = false
@@ -447,26 +463,37 @@ const toggleTag = async (tagId: string) => {
   }
 }
 
-onMounted(() => {
-  fetchQuickReplies()
-  fetchTags()
-})
-
-watch(() => props.conversation?.workspace_id, (newId) => {
-  if (newId) fetchTags()
-})
-
 const filteredQuickReplies = computed(() => {
   if (!input.value.startsWith('/')) return []
   const searchTerm = input.value.slice(1).toLowerCase()
   return quickReplies.value.filter(r => r.shortcut.toLowerCase().includes(searchTerm))
 })
 
-const handleInput = () => {
-  if (input.value.startsWith('/')) {
-    showQuickReplies.value = true
-  } else {
-    showQuickReplies.value = false
+const selectedIndex = ref(0)
+watch(filteredQuickReplies, (newVal) => {
+  if (newVal.length > 0) {
+    selectedIndex.value = 0
+  }
+})
+
+
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (showQuickReplies.value && filteredQuickReplies.value.length > 0) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      selectedIndex.value = (selectedIndex.value + 1) % filteredQuickReplies.value.length
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      selectedIndex.value = (selectedIndex.value - 1 + filteredQuickReplies.value.length) % filteredQuickReplies.value.length
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      selectQuickReply(filteredQuickReplies.value[selectedIndex.value])
+    } else if (e.key === 'Escape') {
+      showQuickReplies.value = false
+    }
+  } else if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    handleSend()
   }
 }
 
@@ -477,7 +504,7 @@ const selectQuickReply = (reply: QuickReply) => {
   }
   input.value = content
   showQuickReplies.value = false
-  // Focus back to textarea (Nuxt UI UTextarea usually has a textarea internal element)
+  // Focus back to textarea
   nextTick(() => {
     const el = (textareaRef.value as any)?.$el?.querySelector('textarea')
     if (el) el.focus()
@@ -485,10 +512,43 @@ const selectQuickReply = (reply: QuickReply) => {
 }
 
 // Auto-scroll
-watch(() => props.messages, async () => {
+const scrollToBottom = async (behavior: ScrollBehavior = 'auto') => {
   await nextTick()
   if (container.value) {
-    container.value.scrollTop = container.value.scrollHeight
+    container.value.scrollTo({
+      top: container.value.scrollHeight,
+      behavior
+    })
   }
+}
+
+// Watch for messages changes
+watch(() => props.messages, (newVal, oldVal) => {
+  if (!newVal?.length) return
+  
+  // If we just got more messages or it's the first set, scroll
+  // If it's just one new message at the end, use smooth scroll
+  const isOneNewMessage = oldVal && newVal.length === oldVal.length + 1
+  scrollToBottom(isOneNewMessage ? 'smooth' : 'auto')
 }, { deep: true })
+
+// Watch for loading state
+watch(() => props.pending, (isPending) => {
+  if (!isPending) {
+    scrollToBottom('auto')
+  }
+})
+
+// Initial scroll
+onMounted(() => {
+  fetchQuickReplies()
+  fetchTags()
+  if (props.messages?.length && !props.pending) {
+    scrollToBottom('auto')
+  }
+})
+
+watch(() => props.conversation?.workspace_id, (newId) => {
+  if (newId) fetchTags()
+})
 </script>

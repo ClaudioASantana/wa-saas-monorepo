@@ -100,7 +100,15 @@ const props = defineProps<{
 const emit = defineEmits(['assign'])
 const loading = ref(false)
 
-const handleAssign = async (agentId: string | null) => {
+const handleAssign = async (agentId: string | null | undefined) => {
+  if (agentId === undefined) {
+    useToast().add({
+      title: 'Ação não permitida',
+      description: 'Seu perfil de agente ainda está sendo carregado.',
+      color: 'yellow'
+    })
+    return
+  }
   loading.value = true
   try {
     await emit('assign', agentId)
