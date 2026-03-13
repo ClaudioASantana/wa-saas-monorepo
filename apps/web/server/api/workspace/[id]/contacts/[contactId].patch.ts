@@ -25,6 +25,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Workspace ID and Contact ID are required' })
   }
 
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workspaceId)) {
+    throw createError({ statusCode: 400, message: 'Invalid Workspace ID format' })
+  }
+
   // Validar contactId como UUID para evitar erro 500 do Postgres com input malformado
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(contactId)) {
     throw createError({ statusCode: 400, message: 'Invalid Contact ID format' })
