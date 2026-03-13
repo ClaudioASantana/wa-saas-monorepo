@@ -96,7 +96,7 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
-const workspaceId = route.params.id as string
+const workspaceId = computed(() => route.params.id as string)
 const toast = useToast()
 const saving = ref(false)
 
@@ -125,12 +125,12 @@ async function save() {
   if (!props.contact) return
   saving.value = true
   try {
-    const updated = await $fetch<ContactRow>(`/api/workspace/${workspaceId}/contacts/${props.contact.id}`, {
+    const updated = await $fetch<ContactRow>(`/api/workspace/${workspaceId.value}/contacts/${props.contact.id}`, {
       method: 'PATCH',
       body: {
         name: form.name || undefined,
         phone: form.phone || undefined,
-        notes: form.notes || undefined,
+        notes: form.notes,
         is_active: form.is_active,
       },
     })
@@ -140,7 +140,8 @@ async function save() {
       color: 'green',
     })
     emit('saved', { ...props.contact, ...updated })
-  } catch {
+  } catch (error) {
+    console.error('[ContactModal] save failed:', error)
     toast.add({
       title: 'Erro ao salvar contato',
       icon: 'i-heroicons-x-circle',
@@ -153,7 +154,7 @@ async function save() {
 
 function goToConversation() {
   if (!props.contact) return
-  navigateTo(`/workspace/${workspaceId}/chat?contactId=${props.contact.id}`)
+  navigateTo(`/workspace/${workspaceId.value}/chat?contactId=${props.contact.id}`)
   emit('close')
 }
 </script>
