@@ -33,7 +33,7 @@ Implementar a página `/workspace/[id]/contatos` que permite ao agente visualiza
 apps/web/pages/workspace/[id]/contatos.vue
 apps/web/components/contacts/ContactsTable.vue
 apps/web/components/contacts/ContactModal.vue
-apps/web/server/api/contacts/[id].patch.ts
+apps/web/server/api/workspace/[id]/contacts/[contactId].patch.ts
 supabase/migrations/20260312000001_add_contact_status.sql
 ```
 
@@ -82,8 +82,10 @@ const { data, pending } = await useAsyncData(`contacts-${workspaceId}`, async ()
 
 ### Endpoint PATCH
 
-**Arquivo:** `apps/web/server/api/contacts/[id].patch.ts`
-**Rota Nuxt 3:** `PATCH /api/contacts/:id` (file-based routing — o `[id]` no nome do arquivo mapeia para o segmento dinâmico)
+**Arquivo:** `apps/web/server/api/workspace/[id]/contacts/[contactId].patch.ts`
+**Rota Nuxt 3:** `PATCH /api/workspace/:id/contacts/:contactId` (file-based routing — `[id]` = workspaceId, `[contactId]` = ID do contato)
+
+> **Decisão de segurança:** O `workspaceId` vem da URL (não do body), seguindo o padrão de todos os outros endpoints do projeto (ex: `/api/workspace/[id]/quick-replies/`). O filtro `.eq('workspace_id', workspaceId)` + RLS do Supabase garante ownership sem membership check explícito.
 
 **Schema Zod:**
 ```typescript
@@ -140,7 +142,7 @@ Emits:
 
 Funcionalidades:
 - Campos editáveis: Nome (UInput), Telefone (UInput), Notas (UTextarea), Status (UToggle com label "Ativo")
-- Botão "Salvar" → `$fetch('/api/contacts/${contact.id}', { method: 'PATCH', body })` → emit `saved` → toast "Contato atualizado"
+- Botão "Salvar" → `$fetch('/api/workspace/${workspaceId}/contacts/${contact.id}', { method: 'PATCH', body })` → emit `saved` → toast "Contato atualizado"
 - Botão "Ver Conversa" → `navigateTo('/workspace/${workspaceId}/chat?contactId=${contact.id}')` — a página de Chat já filtra por contactId via query param para pré-selecionar a conversa
 - Estado de loading no botão "Salvar" durante a requisição
 
@@ -161,17 +163,26 @@ Posição: entre "Chat (Atendimento)" e "CRM (Kanban)".
 ## Exportação CSV
 
 ```typescript
+// RFC 4180: campos com vírgula, aspas ou quebras de linha são envolvidos em aspas duplas
+function csvField(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`
+  }
+  return value
+}
+
 function exportCsv(contacts: Contact[]) {
   const headers = ['Nome', 'Telefone', 'Status', 'Última Conversa', 'Notas']
   const rows = contacts.map(c => [
-    c.name ?? '',
-    c.phone,
+    csvField(c.name ?? ''),
+    csvField(c.phone),
     c.is_active ? 'Ativo' : 'Inativo',
     c.lastConversationAt ? new Date(c.lastConversationAt).toLocaleDateString('pt-BR') : '',
-    (c.notes ?? '').replace(/[\n\r,]/g, ' '),
+    csvField(c.notes ?? ''),
   ])
   const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  // BOM UTF-8 (\uFEFF) garante que Excel/LibreOffice abra com acentos corretamente
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
