@@ -132,6 +132,8 @@ watch(searchQuery, (val) => {
   }, 300)
 })
 
+onUnmounted(() => clearTimeout(debounceTimer))
+
 const filteredContacts = computed(() => {
   if (!debouncedQuery.value) return props.contacts
   const q = debouncedQuery.value.toLowerCase()
