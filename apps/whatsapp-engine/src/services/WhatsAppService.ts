@@ -2,10 +2,18 @@ import makeWASocket, { useMultiFileAuthState, DisconnectReason } from '@whiskeys
 import * as qrcode from 'qrcode-terminal';
 import pino from 'pino';
 import { Boom } from '@hapi/boom';
+import { QueueService } from './QueueService';
 
 export class WhatsAppService {
   private sock: ReturnType<typeof makeWASocket> | null = null;
   private isConnecting: boolean = false;
+  private queueService: QueueService;
+  private instanceName: string;
+
+  constructor() {
+    this.queueService = new QueueService();
+    this.instanceName = process.env.INSTANCE_NAME || 'default-instance';
+  }
 
   public async init() {
     if (this.isConnecting || this.sock) return;
@@ -23,6 +31,15 @@ export class WhatsAppService {
     });
 
     this.sock.ev.on('creds.update', saveCreds);
+
+    this.sock.ev.on('messages.upsert', async (upsert) => {
+      // Only process new messages, ignore history sync or appends
+      if (upsert.type === 'notify') {
+        for (const msg of upsert.messages) {
+          await this.queueService.publishWebhookEvent('messages.upsert', this.instanceName, msg);
+        }
+      }
+    });
 
     this.sock.ev.on('connection.update', (update) => {
       const { connection, lastDisconnect, qr } = update;
@@ -47,6 +64,10 @@ export class WhatsAppService {
       } else if (connection === 'open') {
         console.log('✅ WhatsApp connection opened successfully!');
         this.isConnecting = false;
+      }
+      
+      if (connection) {
+        this.queueService.publishWebhookEvent('connection.update', this.instanceName, { state: connection });
       }
     });
   }

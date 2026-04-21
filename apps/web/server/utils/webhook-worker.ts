@@ -8,6 +8,7 @@ import { ChatService } from '../services/chat.service'
 import { ContactService } from '../services/contact.service'
 import { EvolutionMessageUpsertDataSchema } from '../schemas/evolution.schema'
 import type { MessageType } from '../../types/chat.types'
+import { isWebhookDuplicate } from './webhook-idempotency'
 
 export function createWebhookWorker(supabaseUrl: string, supabaseServiceKey: string) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
@@ -21,6 +22,13 @@ export function createWebhookWorker(supabaseUrl: string, supabaseServiceKey: str
       const { event, instance, data } = payload
 
       logger.info({ event, instance, jobId: job.id }, '[WebhookWorker] Processing job')
+
+      // Check idempotency (since we bypassed the HTTP POST API that normally checks this)
+      const isDuplicate = await isWebhookDuplicate(payload)
+      if (isDuplicate) {
+        logger.info({ event, instance, jobId: job.id }, '[WebhookWorker] Job skipped: Duplicate payload')
+        return { status: 'skipped', reason: 'duplicate_payload' }
+      }
 
       try {
         if (event === 'connection.update') {

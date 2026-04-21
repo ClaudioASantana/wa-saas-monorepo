@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { WhatsAppService } from './services/WhatsAppService';
 
 const start = async () => {
