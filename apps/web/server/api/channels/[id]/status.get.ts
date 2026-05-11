@@ -1,7 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080'
-
 export default defineEventHandler(async (event) => {
   const channelId = event.context.params?.id
   if (!channelId) throw createError({ statusCode: 400, statusMessage: 'Channel ID required' })
@@ -9,38 +7,39 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const supabase = createClient(config.supabaseUrl as string, config.supabaseServiceKey as string)
 
-  // 1. Fetch channel credentials from DB
+  // 1. Fetch channel from DB
   const { data: channel } = await supabase
     .from('channels')
-    .select('provider_instance_id, provider_token')
+    .select('id, status')
     .eq('id', channelId)
     .single()
 
   if (!channel) throw createError({ statusCode: 404, statusMessage: 'Channel not found' })
 
-  // 2. Call Evolution API to get instance status
-  const evolutionUrl = `${EVOLUTION_API_URL}/instance/connectionState/${channel.provider_instance_id}`
-  const evolutionHeaders: Record<string, string> = {
-    'apikey': channel.provider_token
+  // 2. Call WhatsApp Engine API to get instance status
+  const engineUrl = `${config.whatsappEngineUrl || 'http://localhost:3001'}/instances/${channelId}/status`
+  
+  let engineStatus = 'disconnected'
+  try {
+    const engineResponse = await fetch(engineUrl)
+    if (engineResponse.ok) {
+      const engineData = await engineResponse.json() as { status?: string }
+      if (engineData.status) {
+        engineStatus = engineData.status
+      }
+    }
+  } catch (error) {
+    console.warn(`[Status] Failed to fetch status from engine for channel ${channelId}:`, error)
   }
 
-  const evolutionResponse = await fetch(evolutionUrl, { headers: evolutionHeaders })
-  const evolutionData = await evolutionResponse.json() as { instance?: { state?: string }; state?: string; phone?: string }
-
-  console.log(`[Status] Evolution raw response for channel ${channelId}:`, JSON.stringify(evolutionData))
-
   // 3. Determine new status
-  // Evolution returns state within instance.state or at the root depending on versions.
-  const stateStr = evolutionData?.instance?.state || evolutionData?.state
-  const newStatus = stateStr === 'open' ? 'connected' : 'disconnected'
+  const newStatus = engineStatus === 'connected' ? 'connected' : 'disconnected'
   
-  // Note: Evolution API connectionState might not return the phone number directly in V2.
-  // We can fetch from `/instance/fetchInstances` if we need the phone, but for status pooling it's okay.
-  const phoneNumber = evolutionData.phone ?? null
+  // 4. Update DB status if changed
+  if (channel.status !== newStatus) {
+    await supabase.from('channels').update({ status: newStatus }).eq('id', channelId)
+    console.log(`[Status] Channel ${channelId} → ${newStatus}`)
+  }
 
-  // 4. Update DB status
-  await supabase.from('channels').update({ status: newStatus, phone_number: phoneNumber }).eq('id', channelId)
-
-  console.log(`[Status] Channel ${channelId} → ${newStatus}`)
-  return { status: newStatus, phone: phoneNumber, raw: evolutionData }
+  return { status: newStatus }
 })

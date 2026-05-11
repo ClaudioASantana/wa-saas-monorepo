@@ -1,18 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080'
-
 export default defineEventHandler(async (event) => {
   const channelId = event.context.params?.id
   if (!channelId) throw createError({ statusCode: 400, statusMessage: 'Channel ID required' })
 
   const config = useRuntimeConfig()
+  const WHATSAPP_ENGINE_URL = config.whatsappEngineUrl as string
+
   const supabase = createClient(config.supabaseUrl as string, config.supabaseServiceKey as string)
 
   // 1. Fetch channel credentials from DB
   const { data: channel, error: dbError } = await supabase
     .from('channels')
-    .select('provider_instance_id, provider_token')
+    .select('provider_instance_id')
     .eq('id', channelId)
     .single()
 
@@ -21,49 +21,42 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Canal não encontrado no banco de dados.' })
   }
 
-  console.log(`[QR Code] Fetching QR for instance: ${channel.provider_instance_id}`)
+  console.log(`[QR Code] Requesting QR for instance: ${channel.provider_instance_id}`)
 
-  // 2. Call Evolution API QR code / connect endpoint
-  const evolutionUrl = `${EVOLUTION_API_URL}/instance/connect/${channel.provider_instance_id}`
-  console.log(`[QR Code] Calling Evolution API: ${evolutionUrl}`)
-
-  const evolutionHeaders: Record<string, string> = {
-    'apikey': channel.provider_token
+  // 2. Call WhatsApp Engine to ensure the instance is started
+  const startUrl = `${WHATSAPP_ENGINE_URL}/instances/${channel.provider_instance_id}/start`
+  try {
+    await fetch(startUrl, { method: 'POST' })
+  } catch (err) {
+    console.error('[QR Code] Failed to start instance:', err)
+    throw createError({ statusCode: 502, statusMessage: 'Não foi possível conectar ao motor do WhatsApp.' })
   }
 
-  const evolutionResponse = await fetch(evolutionUrl, { headers: evolutionHeaders }).catch((err) => {
-    console.error('[QR Code] Fetch failed:', err)
-    throw createError({ statusCode: 502, statusMessage: 'Não foi possível conectar. Verifique se a API está online.' })
+  // 3. Call WhatsApp Engine to get status and QR
+  const statusUrl = `${WHATSAPP_ENGINE_URL}/instances/${channel.provider_instance_id}/status`
+  const statusRes = await fetch(statusUrl).catch((err) => {
+    console.error('[QR Code] Status fetch failed:', err)
+    throw createError({ statusCode: 502, statusMessage: 'Não foi possível verificar o status do motor.' })
   })
 
-  // 3. Handle Evolution API errors
-  if (!evolutionResponse.ok) {
-    let errBody = ''
-    try { errBody = await evolutionResponse.text() } catch { /* ignore */ }
-    console.error(`[QR Code] Evolution API returned ${evolutionResponse.status}: ${errBody}`)
-
-    if (evolutionResponse.status === 404) {
-      throw createError({ statusCode: 404, statusMessage: 'Instância não encontrada na Evolution API. Verifique a Instance ID.' })
-    }
-    if (evolutionResponse.status === 401 || evolutionResponse.status === 403) {
-      throw createError({ statusCode: 401, statusMessage: 'Token inválido. Verifique o apikey da instância.' })
-    }
-    throw createError({ statusCode: 502, statusMessage: `Evolution API retornou erro ${evolutionResponse.status}: ${errBody}` })
+  if (!statusRes.ok) {
+    throw createError({ statusCode: statusRes.status, statusMessage: 'Erro ao consultar status da instância.' })
   }
 
-  await supabase.from('channels').update({ status: 'qr_pending' }).eq('id', channelId)
+  const json = await statusRes.json() as { status: string; qr?: string }
+  console.log('[QR Code] WhatsApp Engine status:', json.status)
 
-  // Evolution returns JSON with the base64 qr code
-  const json = await evolutionResponse.json() as { base64?: string; state?: string }
-  console.log('[QR Code] Evolution API JSON keys:', Object.keys(json))
-  
-  const base64Str = json.base64 ?? ''
+  if (json.status === 'connected') {
+    throw createError({ statusCode: 400, statusMessage: 'Este Whatsapp já está conectado.' })
+  }
+
+  const base64Str = json.qr ?? ''
   if (!base64Str) {
-    if (json.state === 'open') {
-       throw createError({ statusCode: 400, statusMessage: 'Este Whatsapp já está conectado.' })
-    }
-    throw createError({ statusCode: 502, statusMessage: 'Evolution API retornou JSON sem campo de imagem base64. Tente novamente.' })
+    throw createError({ statusCode: 202, statusMessage: 'Gerando QR Code... Aguarde um instante.' })
   }
+
+  // Update status in db
+  await supabase.from('channels').update({ status: 'qr_pending' }).eq('id', channelId)
 
   // If already a data URL, return as-is; otherwise wrap it
   const qrDataUrl = base64Str.startsWith('data:') ? base64Str : `data:image/png;base64,${base64Str}`

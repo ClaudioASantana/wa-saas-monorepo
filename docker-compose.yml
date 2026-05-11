@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  whatsapp-engine:
+    build:
+      context: .
+      dockerfile: apps/whatsapp-engine/Dockerfile
+    container_name: whatsapp-engine
+    restart: always
+    ports:
+      - '3001:3001'
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - REDIS_URL=redis://redis:6379/1
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    volumes:
+      - ./apps/whatsapp-engine/src:/app/src
+    depends_on:
+      redis:
+        condition: service_started
+
+  redis:
+    image: redis:alpine
+    container_name: wa-redis
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - wa_redis_data:/data
+
+volumes:
+  wa_redis_data:

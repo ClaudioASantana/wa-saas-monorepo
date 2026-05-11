@@ -23,9 +23,8 @@ export default defineNuxtConfig({
     // Private (server-side only) - never exposed to the client
     supabaseUrl: process.env.SUPABASE_URL || '',
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',
-    // Evolution API configuration
-    evolutionApiUrl: process.env.EVOLUTION_API_URL || 'http://localhost:8080',
-    evolutionApiKey: process.env.EVOLUTION_GLOBAL_API_KEY || '',
+    // WhatsApp Engine configuration
+    whatsappEngineUrl: process.env.WHATSAPP_ENGINE_URL || 'http://localhost:3001',
     public: {
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:4000',
       appUrl: process.env.NUXT_PUBLIC_APP_URL || 'http://localhost:3000',

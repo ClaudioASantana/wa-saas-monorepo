@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { serverSupabaseUser } from '#supabase/server'
-
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080'
+import { commandQueue } from '../../utils/command-queue'
 
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event)
@@ -38,30 +37,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Channel or contact not found' })
   }
 
-  // 2. Send via Evolution API (Only if NOT internal)
-  if (!is_internal) {
-    const evolutionUrl = `${EVOLUTION_API_URL}/message/sendText/${channel.provider_instance_id}`
-    
-    const evolutionRes = await fetch(evolutionUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': channel.provider_token
-      },
-      body: JSON.stringify({
-        number: contact.phone,
-        text: message
-      }),
-    })
-
-    if (!evolutionRes.ok) {
-      const errorText = await evolutionRes.text()
-      console.error(`[Message API] Evolution API error: ${evolutionRes.status} ${errorText}`)
-      throw createError({ statusCode: 502, statusMessage: `Evolution API error: ${errorText}` })
-    }
-  }
-
-  // 3. Insert message and notify via ChatService
   const { ChatService } = await import('../../services/chat.service')
   const chatService = new ChatService(supabase)
 
@@ -75,6 +50,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    // 2. Insert message first to get its ID
     const msg = await chatService.insertMessage({
       conversationId: conversation_id,
       tenantId: conv.tenant_id,
@@ -86,7 +62,23 @@ export default defineEventHandler(async (event) => {
       isInternal: !!is_internal
     })
 
-  // 4. Update conversation last_message_at (ChatService.insertMessage notifies message:new, but we still update conv metadata)
+    // 3. Send via BullMQ (Only if NOT internal)
+    if (!is_internal) {
+      await commandQueue.add('send-message', {
+        instanceId: channel.provider_instance_id,
+        to: contact.phone,
+        message: {
+          text: message
+        },
+        metadata: {
+          messageId: msg.id,
+          conversationId: conversation_id,
+          tenantId: conv.tenant_id
+        }
+      })
+    }
+
+    // 4. Update conversation last_message_at
     await supabase.from('conversations').update({
       last_message_at: new Date().toISOString(),
       last_message_preview: message.substring(0, 100),

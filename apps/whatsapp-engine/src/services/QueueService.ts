@@ -1,12 +1,14 @@
-import { Queue } from 'bullmq';
+import { Queue, Worker } from 'bullmq';
 import Redis from 'ioredis';
 import pino from 'pino';
+import { InstanceManager } from './InstanceManager';
 
 const logger = pino({ name: 'QueueService' });
 
 export class QueueService {
   private queue: Queue;
   private redisConnection: Redis;
+  private commandWorker: Worker | null = null;
 
   constructor() {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379/1';
@@ -35,6 +37,35 @@ export class QueueService {
         removeOnComplete: true,
         removeOnFail: 1000,
       },
+    });
+  }
+
+  /**
+   * Starts listening to commands (like sendMessage) sent from the main backend
+   */
+  public startCommandWorker(instanceManager: InstanceManager) {
+    if (this.commandWorker) return;
+
+    logger.info('[QueueService] Starting WhatsApp command worker...');
+    
+    this.commandWorker = new Worker('whatsapp-commands', async (job) => {
+      const { action, instanceId, data } = job.data;
+      
+      logger.info({ action, instanceId }, `[QueueService] Processing command`);
+
+      if (action === 'sendMessage') {
+        const instance = instanceManager.getInstance(instanceId);
+        if (!instance) {
+          throw new Error(`Instance ${instanceId} not found or not connected`);
+        }
+        await instance.sendMessage(data.to, data.text);
+      } else {
+        logger.warn({ action }, `[QueueService] Unknown command action`);
+      }
+    }, { connection: this.redisConnection as any });
+
+    this.commandWorker.on('failed', (job, err) => {
+      logger.error({ err, job: job?.id }, '[QueueService] Job failed');
     });
   }
 
