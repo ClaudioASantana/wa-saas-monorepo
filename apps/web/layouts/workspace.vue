@@ -52,21 +52,32 @@
         class="h-16 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur z-10 shrink-0"
       >
         <div class="flex items-center space-x-4">
-          <!-- TODO: Z-API Connection Status Widget -->
-          <UBadge color="red" variant="subtle" size="sm">WhatsApp Desconectado</UBadge>
+          <UBadge 
+            :color="hasConnectedChannel ? 'green' : 'red'" 
+            variant="subtle" 
+            size="sm"
+          >
+            WhatsApp {{ hasConnectedChannel ? 'Conectado' : 'Desconectado' }}
+          </UBadge>
         </div>
         <div class="flex items-center space-x-3">
-          <span class="text-sm font-medium text-slate-700 dark:text-slate-300">{{
-            user?.email
-          }}</span>
-          <UButton
-            color="gray"
-            variant="ghost"
-            icon="i-heroicons-arrow-right-on-rectangle"
-            @click="logout"
-          />
+          <UDropdown :items="userMenuItems" :popper="{ placement: 'bottom-end' }">
+            <UButton color="gray" variant="ghost" class="flex items-center gap-2">
+              <UAvatar :src="avatarPublicUrl || undefined" :alt="user?.email" size="sm" />
+              <span class="hidden sm:block text-sm font-medium text-slate-700 dark:text-slate-300 truncate max-w-[150px]">
+                {{ userProfile?.name || user?.email }}
+              </span>
+              <UIcon name="i-heroicons-chevron-down-20-solid" class="w-4 h-4 text-slate-400" />
+            </UButton>
+          </UDropdown>
         </div>
       </header>
+
+      <!-- Subscription Alert -->
+      <div v-if="workspaceDetails?.subscription_status === 'canceled' || workspaceDetails?.subscription_status === 'past_due' || workspaceDetails?.subscription_status === 'unpaid'" class="bg-red-500 text-white px-4 py-2 text-sm text-center font-medium shrink-0">
+        A assinatura deste workspace está pendente ou cancelada. O acesso a algumas funcionalidades pode estar restrito.
+        <NuxtLink :to="`/workspace/${workspaceId}/assinatura`" class="underline ml-2">Regularizar Assinatura</NuxtLink>
+      </div>
 
       <!-- Dynamic Page Content -->
       <main class="flex-1 overflow-auto relative">
@@ -84,15 +95,30 @@ const { user, logout } = useAuth()
 const supabase = useSupabaseClient()
 
 const workspaceName = ref('Carregando...')
+const hasConnectedChannel = ref(false)
+const workspaceDetails = ref<any>(null)
 
 // Busca nome do banco para a UI do menu
 useAsyncData(`workspace-name-${workspaceId}`, async () => {
-  const { data } = await supabase.from('workspaces').select('name').eq('id', workspaceId).single()
+  const { data } = await supabase.from('workspaces').select('name, subscription_status').eq('id', workspaceId).single() as any
 
   if (data) {
     workspaceName.value = data.name
+    workspaceDetails.value = data
   }
   return data
+})
+
+// Verifica se há canais conectados
+useAsyncData(`workspace-status-${workspaceId}`, async () => {
+  const { count } = await supabase
+    .from('channels')
+    .select('*', { count: 'exact', head: true })
+    .eq('workspace_id', workspaceId)
+    .eq('status', 'connected')
+
+  hasConnectedChannel.value = (count ?? 0) > 0
+  return count
 })
 
 const links = [
@@ -113,5 +139,41 @@ const links = [
     to: `/workspace/${workspaceId}/configuracoes`,
     icon: 'i-heroicons-cog-8-tooth',
   },
+  {
+    label: 'Assinatura',
+    to: `/workspace/${workspaceId}/assinatura`,
+    icon: 'i-heroicons-credit-card',
+  },
+]
+
+// ----------------------------------------------------------------------------
+// User Profile & Menu
+// ----------------------------------------------------------------------------
+const userProfile = ref<{ name?: string, avatar_url?: string | null } | null>(null)
+
+useAsyncData('user-profile', async () => {
+  if (!user.value) return null
+  const { data } = (await supabase.from('profiles').select('name, avatar_url').eq('id', user.value.id).single()) as any
+  userProfile.value = data
+  return data
+})
+
+const avatarPublicUrl = computed(() => {
+  if (!userProfile.value?.avatar_url) return null
+  const { data } = supabase.storage.from('avatars').getPublicUrl(userProfile.value.avatar_url)
+  return data.publicUrl
+})
+
+const userMenuItems = [
+  [{
+    label: 'Meu Perfil',
+    icon: 'i-heroicons-user-circle',
+    to: '/perfil'
+  }],
+  [{
+    label: 'Sair',
+    icon: 'i-heroicons-arrow-right-on-rectangle',
+    click: logout
+  }]
 ]
 </script>

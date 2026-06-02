@@ -1,0 +1,16 @@
+{
+  "event": "messages.upsert",
+  "instance": "wa-saas-test-instance",
+  "data": {
+    "message": {
+      "key": {
+        "remoteJid": "5511999999999@s.whatsapp.net",
+        "id": "msg-123"
+      },
+      "pushName": "Test User",
+      "message": {
+        "conversation": "Hello from simulated webhook"
+      }
+    }
+  }
+}

@@ -4,7 +4,7 @@
       <div>
         <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Canais de WhatsApp</h1>
         <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Conecte e gerencie seus números de WhatsApp via Z-API.
+          Conecte e gerencie seus números de WhatsApp via Evolution API.
         </p>
       </div>
       <UButton icon="i-heroicons-plus" color="primary" @click="openAddModal">
@@ -60,7 +60,7 @@
             <div>
               <p class="font-semibold text-slate-900 dark:text-white">{{ channel.name }}</p>
               <p class="text-xs text-slate-500 dark:text-slate-400">
-                {{ channel.phone_number || channel.zapi_instance_id }}
+                {{ channel.phone_number || channel.provider_instance_id }}
               </p>
             </div>
           </div>
@@ -84,7 +84,31 @@
             }}
           </UBadge>
         </div>
-        <div class="mt-4 flex space-x-2">
+        <!-- Webhook URL (only when connected) -->
+        <div
+          v-if="channel.status === 'connected'"
+          class="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"
+        >
+          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">URL do Webhook (Evolution API)</p>
+          <div class="flex items-center gap-2">
+            <code class="flex-1 text-[11px] text-slate-600 dark:text-slate-300 truncate font-mono">
+              {{ webhookUrl }}
+            </code>
+            <UButton
+              size="xs"
+              variant="ghost"
+              color="gray"
+              icon="i-heroicons-clipboard-document"
+              @click="copyWebhook"
+            />
+          </div>
+          <p class="text-[10px] text-slate-500 mt-2">
+            Configure esta URL no painel ou via Postman na sua
+            <a href="https://evolution-api.com" target="_blank" class="text-primary-500 hover:underline">Evolution API</a>
+          </p>
+        </div>
+
+        <div class="mt-3 flex space-x-2">
           <UButton
             v-if="channel.status !== 'connected'"
             size="xs"
@@ -129,29 +153,24 @@
             <UFormGroup label="Nome do Canal" required hint="Ex: Vendas, Suporte, SAC">
               <UInput v-model="form.name" placeholder="Suporte ao Cliente" icon="i-heroicons-tag" />
             </UFormGroup>
-            <UFormGroup label="Instance ID (Z-API)" required>
+            <UFormGroup label="Instance Name (Evolution API)" required>
               <UInput
                 v-model="form.instanceId"
-                placeholder="Ex: 3D123ABC4567EF"
+                placeholder="Ex: MinhaInstancia"
                 icon="i-heroicons-key"
               />
             </UFormGroup>
-            <UFormGroup label="Token (Z-API)" required>
+            <UFormGroup label="API Token (Evolution API)" required>
               <UInput
                 v-model="form.token"
                 type="password"
-                placeholder="Seu token do Z-API"
+                placeholder="Seu token Global da Evolution"
                 icon="i-heroicons-lock-closed"
               />
             </UFormGroup>
             <p class="text-xs text-slate-500 dark:text-slate-400">
-              Encontre suas credenciais em
-              <a
-                href="https://app.z-api.io"
-                target="_blank"
-                class="text-primary-500 hover:underline"
-                >app.z-api.io</a
-              >
+              O Token é a `AUTHENTICATION_API_KEY` configurada no seu arquivo 
+              <span class="font-mono text-primary-500">docker-compose.yml</span>
             </p>
             <div
               v-if="formError"
@@ -268,12 +287,27 @@ definePageMeta({
 const route = useRoute()
 const workspaceId = route.params.id as string
 
+// ── Webhook URL ──────────────────────────────────────────────────────────────
+const requestUrl = useRequestURL()
+const webhookUrl = computed(() => `${requestUrl.origin}/api/webhooks/evolution`)
+
+const copyWebhook = () => {
+  navigator.clipboard.writeText(webhookUrl.value)
+  useToast().add({
+    title: 'URL copiada!',
+    description: 'Cole no painel da sua API → Webhook.',
+    icon: 'i-heroicons-clipboard-document-check',
+    color: 'green',
+    timeout: 3000,
+  })
+}
+
 interface Channel {
   id: string
   name: string
   status: string
   phone_number: string | null
-  zapi_instance_id: string
+  provider_instance_id: string
   created_at: string
 }
 
@@ -319,8 +353,8 @@ const saveAndGetQr = async () => {
       body: {
         workspace_id: workspaceId,
         name: form.value.name,
-        zapi_instance_id: form.value.instanceId,
-        zapi_token: form.value.token,
+        provider_instance_id: form.value.instanceId,
+        provider_token: form.value.token,
       },
     })
     isAddModalOpen.value = false

@@ -173,7 +173,7 @@ const {
   const userId = sessionData.session?.user?.id
   if (!userId) return []
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('user_workspaces')
     .select(
       `
@@ -215,7 +215,7 @@ const createWorkspace = async () => {
 
     console.log('Sending Payload:', payload)
 
-    const { data, error } = await supabase.from('workspaces').insert(payload).select().single()
+    const { data, error } = await (supabase as any).from('workspaces').insert(payload).select().single()
 
     if (error) {
       console.error('Supabase Error:', error)

@@ -17,7 +17,8 @@
     "@supabase/supabase-js": "^2.39.0",
     "@wa-saas/shared": "*",
     "fastify": "^4.26.0",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

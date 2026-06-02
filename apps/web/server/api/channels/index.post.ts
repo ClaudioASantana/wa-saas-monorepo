@@ -2,18 +2,20 @@ import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { workspace_id, name, zapi_instance_id, zapi_token } = body
+  const { workspace_id, name, provider_instance_id, provider_token } = body
 
-  if (!workspace_id || !name || !zapi_instance_id || !zapi_token) {
-    throw createError({ statusCode: 400, statusMessage: 'workspace_id, name, zapi_instance_id, and zapi_token are required' })
+  if (!workspace_id || !name || !provider_instance_id || !provider_token) {
+    throw createError({ statusCode: 400, statusMessage: 'workspace_id, name, provider_instance_id, and provider_token are required' })
   }
 
   const config = useRuntimeConfig()
-  const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey)
+
+  // 1. Save to database
+  const supabase = createClient(config.supabaseUrl as string, config.supabaseServiceKey as string)
 
   const { data, error } = await supabase
     .from('channels')
-    .insert({ workspace_id, name, zapi_instance_id, zapi_token, status: 'disconnected' })
+    .insert({ workspace_id, name, provider_instance_id, provider_token, status: 'disconnected' })
     .select()
     .single()
 

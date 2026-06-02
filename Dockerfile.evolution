@@ -1,0 +1,17 @@
+FROM atendai/evolution-api:latest
+
+WORKDIR /evolution
+
+# Install git (needed for Baileys dependencies from GitHub)
+RUN apk add --no-cache git
+
+# Update the Baileys fork to the latest version from EvolutionAPI GitHub
+# This resolves the WhatsApp 405 "Method Not Allowed" error caused by outdated Baileys
+RUN npm install github:EvolutionAPI/Baileys --legacy-peer-deps
+
+# CRITICAL FIX: Run the patch script to force the correct WhatsApp protocol version (2.3000.1033846690)
+# This patches both the defaults and the compiled bundle in dist/
+COPY Docker/patch-baileys.sh /tmp/patch-baileys.sh
+RUN sh /tmp/patch-baileys.sh
+
+CMD ["/bin/bash", "-c", ". ./Docker/scripts/deploy_database.sh && npm run start:prod"]

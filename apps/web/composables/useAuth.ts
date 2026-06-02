@@ -15,9 +15,35 @@ export const useAuth = () => {
     }
   }
 
+  const forgotPassword = async (email: string): Promise<{ error: string | null }> => {
+    loading.value = true
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/redefinir-senha`,
+      })
+      if (error) return { error: error.message }
+      return { error: null }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const resetPassword = async (newPassword: string): Promise<{ error: string | null }> => {
+    loading.value = true
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error) return { error: error.message }
+      return { error: null }
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     user,
     loading,
-    logout
+    logout,
+    forgotPassword,
+    resetPassword,
   }
 }
