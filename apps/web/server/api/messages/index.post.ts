@@ -64,10 +64,11 @@ export default defineEventHandler(async (event) => {
 
     // 3. Send via BullMQ (Only if NOT internal)
     if (!is_internal) {
-      await commandQueue.add('send-message', {
+      await commandQueue.add('sendMessage', {
+        action: 'sendMessage',
         instanceId: channel.provider_instance_id,
-        to: contact.phone,
-        message: {
+        data: {
+          to: contact.phone,
           text: message
         },
         metadata: {

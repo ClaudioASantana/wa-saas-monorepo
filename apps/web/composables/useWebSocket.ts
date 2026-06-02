@@ -18,6 +18,15 @@ export const useWebSocket = () => {
       console.warn('[WebSocket] No session token found, skipping connection')
       return
     }
+    
+    // Get tenantId from route
+    const route = useRoute()
+    const tenantId = route.params.id as string
+    
+    if (!tenantId) {
+      console.warn('[WebSocket] No tenantId found in route, skipping connection')
+      return
+    }
 
     // Connect to the same host as the API
     // In Nuxt 3, if server and client run on the same port, we can omit the URL
@@ -26,7 +35,7 @@ export const useWebSocket = () => {
     console.log('[WebSocket] Connecting to:', socketUrl)
 
     socket.value = io(socketUrl, {
-      auth: { token },
+      auth: { token, tenantId },
       transports: ['websocket'], // Prefer WebSockets
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,

@@ -23,6 +23,10 @@ export default defineNuxtConfig({
     // Private (server-side only) - never exposed to the client
     supabaseUrl: process.env.SUPABASE_URL || '',
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',
+    stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
+    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+    stripePriceStarter: process.env.STRIPE_PRICE_STARTER || '',
+    stripePricePro: process.env.STRIPE_PRICE_PRO || '',
     // WhatsApp Engine configuration
     whatsappEngineUrl: process.env.WHATSAPP_ENGINE_URL || 'http://localhost:3001',
     public: {

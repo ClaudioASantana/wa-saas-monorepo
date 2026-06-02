@@ -381,6 +381,14 @@ onMounted(async () => {
   } catch (err) {
     console.error('[Chat] Error fetching/creating agent:', err)
   }
+
+  // Pre-select conversation from query param
+  if (route.query.c && conversations.value) {
+    const conv = conversations.value.find(c => c.id === route.query.c)
+    if (conv) {
+      await selectConversation(conv)
+    }
+  }
 })
 
 onUnmounted(() => {

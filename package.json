@@ -9,7 +9,13 @@
     "dev:web": "npm run dev --workspace=apps/web",
     "build": "npm run build --workspace=packages/shared && npm run build --workspace=apps/api && npm run build --workspace=apps/web",
     "lint": "eslint . --ext .ts,.vue,.js --ignore-path .eslintignore",
-    "typecheck": "npm run typecheck --workspace=packages/shared && npm run typecheck --workspace=apps/api && npm run typecheck --workspace=apps/web"
+    "typecheck": "npm run typecheck --workspace=packages/shared && npm run typecheck --workspace=apps/api && npm run typecheck --workspace=apps/web",
+    "sync:ide": "node .aios-core/infrastructure/scripts/ide-sync/index.js sync",
+    "sync:ide:check": "node .aios-core/infrastructure/scripts/ide-sync/index.js validate --strict",
+    "sync:skills:codex": "node .aios-core/infrastructure/scripts/codex-skills-sync/index.js",
+    "sync:skills:codex:global": "node .aios-core/infrastructure/scripts/codex-skills-sync/index.js --global",
+    "validate:structure": "node .aios-core/infrastructure/scripts/aios-validator.js all",
+    "validate:agents": "node .aios-core/infrastructure/scripts/validate-agents.js"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.0.0",

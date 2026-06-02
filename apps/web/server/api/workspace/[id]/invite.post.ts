@@ -12,6 +12,22 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'workspace_id and email are required' })
   }
 
+  // 0. Check subscription limits
+  const { data: workspace } = await supabase.from('workspaces').select('plan, subscription_status').eq('id', workspaceId).single() as any
+  if (workspace) {
+    const invalidStatuses = ['canceled', 'past_due', 'unpaid']
+    if (invalidStatuses.includes(workspace.subscription_status)) {
+      throw createError({ statusCode: 403, statusMessage: 'Workspace subscription is restricted. Please update your billing info.' })
+    }
+
+    if (workspace.plan !== 'pro') {
+      const { count } = await supabase.from('user_workspaces').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId)
+      if (count && count >= 3) {
+        throw createError({ statusCode: 403, statusMessage: 'Starter plan limit reached (3 agents). Please upgrade to Pro.' })
+      }
+    }
+  }
+
   // 1. Invite user via Supabase Auth
   const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
     redirectTo: `${config.public.appUrl ?? ''}/auth/confirm`,

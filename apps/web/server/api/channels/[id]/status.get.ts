@@ -10,14 +10,14 @@ export default defineEventHandler(async (event) => {
   // 1. Fetch channel from DB
   const { data: channel } = await supabase
     .from('channels')
-    .select('id, status')
+    .select('id, status, provider_instance_id')
     .eq('id', channelId)
     .single()
 
   if (!channel) throw createError({ statusCode: 404, statusMessage: 'Channel not found' })
 
   // 2. Call WhatsApp Engine API to get instance status
-  const engineUrl = `${config.whatsappEngineUrl || 'http://localhost:3001'}/instances/${channelId}/status`
+  const engineUrl = `${config.whatsappEngineUrl || 'http://localhost:3001'}/instances/${channel.provider_instance_id}/status`
   
   let engineStatus = 'disconnected'
   try {

@@ -326,6 +326,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           email: string
           id: string
@@ -333,6 +334,7 @@ export type Database = {
           phone: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           email: string
           id: string
@@ -340,6 +342,7 @@ export type Database = {
           phone?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -438,18 +441,30 @@ export type Database = {
           id: string
           name: string
           owner_id: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          plan: string | null
+          subscription_status: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
           owner_id: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          plan?: string | null
+          subscription_status?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
           owner_id?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          plan?: string | null
+          subscription_status?: string | null
         }
         Relationships: [
           {

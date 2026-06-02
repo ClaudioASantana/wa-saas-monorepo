@@ -9,10 +9,7 @@
       </p>
     </div>
 
-    <UTabs
-      :items="tabs"
-      class="w-full"
-    >
+    <UTabs :items="tabs" class="w-full">
       <!-- Geral Tab -->
       <template #geral>
         <div class="space-y-6 pt-4">
@@ -23,23 +20,12 @@
                 Informações do Workspace
               </h3>
             </template>
-            <form
-              class="space-y-4"
-              @submit.prevent="saveSettings"
-            >
+            <form class="space-y-4" @submit.prevent="saveSettings">
               <UFormGroup label="Nome do Workspace">
-                <UInput
-                  v-model="settings.name"
-                  placeholder="Nome da sua agência"
-                  icon="i-heroicons-building-office"
-                />
+                <UInput v-model="settings.name" placeholder="Nome da sua agência" icon="i-heroicons-building-office" />
               </UFormGroup>
               <div class="flex justify-end">
-                <UButton
-                  type="submit"
-                  color="primary"
-                  :loading="saving"
-                >
+                <UButton type="submit" color="primary" :loading="saving">
                   Salvar Alterações
                 </UButton>
               </div>
@@ -50,10 +36,7 @@
           <UCard>
             <template #header>
               <div class="flex items-center space-x-2">
-                <UIcon
-                  name="i-heroicons-bolt"
-                  class="w-5 h-5 text-primary-500"
-                />
+                <UIcon name="i-heroicons-bolt" class="w-5 h-5 text-primary-500" />
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">
                   URL do Webhook
                 </h3>
@@ -63,22 +46,14 @@
               <p class="text-sm text-slate-500 dark:text-slate-400">
                 Configure esta URL no painel da sua Evolution API para receber mensagens.
               </p>
-              <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700">
-                <UIcon
-                  name="i-heroicons-link"
-                  class="w-4 h-4 text-slate-400 shrink-0"
-                />
+              <div
+                class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700">
+                <UIcon name="i-heroicons-link" class="w-4 h-4 text-slate-400 shrink-0" />
                 <code class="flex-1 text-sm text-slate-700 dark:text-slate-300 font-mono truncate">
-                  {{ webhookUrl }}
-                </code>
-                <UButton
-                  size="xs"
-                  variant="soft"
-                  color="primary"
-                  icon="i-heroicons-clipboard-document"
-                  :label="copied ? 'Copiado!' : 'Copiar'"
-                  @click="copyWebhook"
-                />
+        {{ webhookUrl }}
+      </code>
+                <UButton size="xs" variant="soft" color="primary" icon="i-heroicons-clipboard-document"
+                  :label="copied ? 'Copiado!' : 'Copiar'" @click="copyWebhook" />
               </div>
             </div>
           </UCard>
@@ -87,10 +62,7 @@
           <UCard :ui="{ ring: 'ring-1 ring-red-300 dark:ring-red-800' }">
             <template #header>
               <div class="flex items-center space-x-2">
-                <UIcon
-                  name="i-heroicons-exclamation-triangle"
-                  class="w-5 h-5 text-red-500"
-                />
+                <UIcon name="i-heroicons-exclamation-triangle" class="w-5 h-5 text-red-500" />
                 <h3 class="text-base font-semibold text-red-600 dark:text-red-400">
                   Zona de Perigo
                 </h3>
@@ -105,12 +77,7 @@
                   Esta ação é irreversível. Todos os dados serão permanentemente removidos.
                 </p>
               </div>
-              <UButton
-                color="red"
-                variant="soft"
-                icon="i-heroicons-trash"
-                @click="isDeleteModalOpen = true"
-              >
+              <UButton color="red" variant="soft" icon="i-heroicons-trash" @click="isDeleteModalOpen = true">
                 Excluir Workspace
               </UButton>
             </div>
@@ -125,47 +92,24 @@
             <template #header>
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2">
-                  <UIcon
-                    name="i-heroicons-users"
-                    class="w-5 h-5 text-primary-500"
-                  />
+                  <UIcon name="i-heroicons-users" class="w-5 h-5 text-primary-500" />
                   <h3 class="text-base font-semibold text-gray-900 dark:text-white">
                     Membros da Equipe
                   </h3>
                 </div>
-                <UBadge
-                  color="gray"
-                  variant="subtle"
-                >
+                <UBadge color="gray" variant="subtle">
                   {{ members?.length || 0 }} membro(s)
                 </UBadge>
               </div>
             </template>
             <div class="space-y-4">
-              <div
-                v-if="membersPending"
-                class="space-y-3"
-              >
-                <USkeleton
-                  v-for="i in 2"
-                  :key="i"
-                  class="h-12 w-full"
-                />
+              <div v-if="membersPending" class="space-y-3">
+                <USkeleton v-for="i in 2" :key="i" class="h-12 w-full" />
               </div>
-              <ul
-                v-else
-                class="divide-y divide-slate-100 dark:divide-slate-800"
-              >
-                <li
-                  v-for="member in members"
-                  :key="member.user_id"
-                  class="flex items-center justify-between py-3"
-                >
+              <ul v-else class="divide-y divide-slate-100 dark:divide-slate-800">
+                <li v-for="member in members" :key="member.user_id" class="flex items-center justify-between py-3">
                   <div class="flex items-center space-x-3">
-                    <UAvatar
-                      :alt="member.profile?.email ?? 'M'"
-                      size="sm"
-                    />
+                    <UAvatar :alt="member.profile?.email ?? 'M'" size="sm" />
                     <div>
                       <p class="text-sm font-medium text-slate-900 dark:text-white">
                         {{ member.profile?.name || member.profile?.email }}
@@ -175,36 +119,18 @@
                       </p>
                     </div>
                   </div>
-                  <UBadge
-                    :color="member.role === 'owner' ? 'primary' : 'gray'"
-                    variant="subtle"
-                    size="xs"
-                  >
+                  <UBadge :color="member.role === 'owner' ? 'primary' : 'gray'" variant="subtle" size="xs">
                     {{ member.role === 'owner' ? 'Proprietário' : 'Membro' }}
                   </UBadge>
                 </li>
               </ul>
 
               <UDivider label="Convidar novo membro" />
-              <form
-                class="flex gap-3"
-                @submit.prevent="inviteMember"
-              >
-                <UInput
-                  v-model="inviteEmail"
-                  type="email"
-                  placeholder="email@exemplo.com"
-                  icon="i-heroicons-envelope"
-                  class="flex-1"
-                  :disabled="inviting"
-                />
-                <UButton
-                  type="submit"
-                  icon="i-heroicons-paper-airplane"
-                  color="primary"
-                  :loading="inviting"
-                  :disabled="!inviteEmail.trim()"
-                >
+              <form class="flex gap-3" @submit.prevent="inviteMember">
+                <UInput v-model="inviteEmail" type="email" placeholder="email@exemplo.com" icon="i-heroicons-envelope"
+                  class="flex-1" :disabled="inviting" />
+                <UButton type="submit" icon="i-heroicons-paper-airplane" color="primary" :loading="inviting"
+                  :disabled="!inviteEmail.trim()">
                   Convidar
                 </UButton>
               </form>
@@ -230,20 +156,23 @@
           </UCard>
         </div>
       </template>
+
+      <!-- Roteamento Tab -->
+      <template #roteamento>
+        <div class="pt-4">
+          <UCard>
+            <RoutingManager :workspace-id="workspaceId" />
+          </UCard>
+        </div>
+      </template>
     </UTabs>
 
     <!-- Delete Confirmation Modal (Workspace) -->
-    <UModal
-      v-model="isDeleteModalOpen"
-      :prevent-close="deleting"
-    >
+    <UModal v-model="isDeleteModalOpen" :prevent-close="deleting">
       <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
         <template #header>
           <div class="flex items-center space-x-2">
-            <UIcon
-              name="i-heroicons-exclamation-triangle"
-              class="w-5 h-5 text-red-500"
-            />
+            <UIcon name="i-heroicons-exclamation-triangle" class="w-5 h-5 text-red-500" />
             <h3 class="text-base font-semibold text-gray-900 dark:text-white">
               Confirmar exclusão
             </h3>
@@ -255,35 +184,20 @@
               Para confirmar, digite o nome do workspace:
               <strong class="text-slate-900 dark:text-white">{{ settings.name }}</strong>
             </p>
-            <UInput
-              v-model="deleteConfirmName"
-              :placeholder="settings.name"
-              icon="i-heroicons-building-office"
-            />
+            <UInput v-model="deleteConfirmName" :placeholder="settings.name" icon="i-heroicons-building-office" />
             <div
-              class="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-100 dark:border-red-800"
-            >
+              class="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 p-3 rounded-md border border-red-100 dark:border-red-800">
               ⚠️ Todas as conversas, mensagens, canais e dados do workspace serão excluídos permanentemente.
             </div>
           </div>
         </template>
         <template #footer>
           <div class="flex justify-end space-x-3">
-            <UButton
-              color="gray"
-              variant="ghost"
-              :disabled="deleting"
-              @click="isDeleteModalOpen = false"
-            >
+            <UButton color="gray" variant="ghost" :disabled="deleting" @click="isDeleteModalOpen = false">
               Cancelar
             </UButton>
-            <UButton
-              color="red"
-              icon="i-heroicons-trash"
-              :loading="deleting"
-              :disabled="deleteConfirmName !== settings.name"
-              @click="deleteWorkspace"
-            >
+            <UButton color="red" icon="i-heroicons-trash" :loading="deleting"
+              :disabled="deleteConfirmName !== settings.name" @click="deleteWorkspace">
               Excluir Definitivamente
             </UButton>
           </div>
@@ -296,6 +210,7 @@
 <script setup lang="ts">
 import QuickRepliesManager from '~/components/admin/QuickRepliesManager.vue'
 import TagsManager from '~/components/admin/TagsManager.vue'
+import RoutingManager from '~/components/admin/RoutingManager.vue'
 
 definePageMeta({
   layout: 'workspace',
@@ -310,6 +225,7 @@ const workspaceId = route.params.id as string
 const tabs = [
   { label: 'Geral', slot: 'geral', icon: 'i-heroicons-cog-6-tooth' },
   { label: 'Equipe', slot: 'equipe', icon: 'i-heroicons-users' },
+  { label: 'Roteamento', slot: 'roteamento', icon: 'i-heroicons-arrows-right-left' },
   { label: 'Respostas Rápidas', slot: 'respostas', icon: 'i-heroicons-chat-bubble-left-right' },
   { label: 'Etiquetas', slot: 'tags', icon: 'i-heroicons-tag' }
 ]
@@ -342,13 +258,13 @@ const { data: workspaceData } = await useAsyncData(`settings-${workspaceId}`, as
 })
 
 if (workspaceData.value) {
-  settings.value.name = workspaceData.value.name
+  settings.value.name = (workspaceData.value as any).name
 }
 
 const saveSettings = async () => {
   if (!settings.value.name.trim()) return
   saving.value = true
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('workspaces')
     .update({ name: settings.value.name })
     .eq('id', workspaceId)
@@ -424,14 +340,14 @@ const deleteWorkspace = async () => {
   try {
     const { error } = await supabase.from('workspaces').delete().eq('id', workspaceId)
     if (error) throw error
-    
+
     useToast().add({
       title: 'Workspace excluído',
       description: 'Todos os dados foram removidos permanentemente.',
       icon: 'i-heroicons-trash',
       color: 'gray',
     })
-    
+
     await router.push('/')
   } catch (err) {
     console.error('Error deleting workspace:', err)

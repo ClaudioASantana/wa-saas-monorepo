@@ -6,6 +6,7 @@ import { logger } from './logger'
 import { mediaQueue } from './media-queue'
 import { ChatService } from '../services/chat.service'
 import { ContactService } from '../services/contact.service'
+import { RoutingService } from '../services/routing.service'
 import { EvolutionMessageUpsertDataSchema } from '../schemas/evolution.schema'
 import type { MessageType } from '../../types/chat.types'
 import { isWebhookDuplicate } from './webhook-idempotency'
@@ -14,6 +15,7 @@ export function createWebhookWorker(supabaseUrl: string, supabaseServiceKey: str
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
   const chatService = new ChatService(supabase)
   const contactService = new ContactService(supabase)
+  const routingService = new RoutingService(supabase, chatService)
 
   const worker = new Worker(
     'webhook-processing',
@@ -39,7 +41,7 @@ export function createWebhookWorker(supabaseUrl: string, supabaseServiceKey: str
         if (event === 'messages.upsert') {
           // Validate with Zod
           const validatedData = EvolutionMessageUpsertDataSchema.parse(data)
-          await handleMessageUpsert(chatService, contactService, instance, validatedData, supabase)
+          await handleMessageUpsert(chatService, contactService, routingService, instance, validatedData, supabase)
           return { status: 'message_processed' }
         }
 
@@ -74,6 +76,7 @@ async function handleConnectionUpdate(supabase: any, instanceId: string, data: a
 async function handleMessageUpsert(
   chatService: ChatService, 
   contactService: ContactService, 
+  routingService: RoutingService,
   instanceId: string, 
   messageData: any,
   supabase: any
@@ -172,4 +175,14 @@ async function handleMessageUpsert(
     content,
     senderName
   })
+
+  // 6. Route Conversation if no agent is assigned
+  if (!conversation.agent_id) {
+    await routingService.routeConversation({
+      workspaceId: channel.workspace_id,
+      tenantId,
+      contactId: contact.id,
+      conversationId: conversation.id
+    })
+  }
 }
