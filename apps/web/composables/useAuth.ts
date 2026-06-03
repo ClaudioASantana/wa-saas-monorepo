@@ -1,3 +1,7 @@
+import { useUserStore } from '~/stores/user'
+import { useWorkspaceStore } from '~/stores/workspace'
+import { useAgentsStore } from '~/stores/agents'
+
 export const useAuth = () => {
   const supabase = useSupabaseClient()
   const user = useSupabaseUser()
@@ -6,6 +10,9 @@ export const useAuth = () => {
   const logout = async () => {
     loading.value = true
     try {
+      useUserStore().$reset()
+      useWorkspaceStore().$reset()
+      useAgentsStore().$reset()
       await supabase.auth.signOut()
       navigateTo('/login')
     } catch (error) {

@@ -59,7 +59,7 @@
             <p class="text-[10px] font-bold text-slate-400 uppercase px-1">
               Atribuir a
             </p>
-            <div class="space-y-1">
+            <div class="space-y-1 max-h-48 overflow-y-auto">
               <UButton
                 block
                 size="xs"
@@ -70,6 +70,30 @@
               >
                 Assumir para mim
               </UButton>
+              
+              <UDivider class="my-1" />
+              
+              <!-- Listar agentes da store -->
+              <UButton
+                v-for="agent in agentsStore.agents"
+                :key="agent.id"
+                block
+                size="xs"
+                variant="ghost"
+                color="gray"
+                class="justify-start flex items-center gap-2"
+                @click="handleAssign(agent.id)"
+              >
+                <UAvatar
+                  :alt="agent.name"
+                  :src="agent.avatar_url || ''"
+                  size="3xs"
+                />
+                <span class="truncate flex-1 text-left text-xs">{{ agent.name }}</span>
+              </UButton>
+              
+              <UDivider class="my-1" />
+              
               <UButton
                 block
                 size="xs"
@@ -90,6 +114,7 @@
 
 <script setup lang="ts">
 import type { Conversation } from '~/types/chat.types'
+import { useAgentsStore } from '~/stores/agents'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const props = defineProps<{
@@ -99,6 +124,20 @@ const props = defineProps<{
 
 const emit = defineEmits(['assign'])
 const loading = ref(false)
+
+const agentsStore = useAgentsStore()
+
+onMounted(() => {
+  if (props.conversation.workspace_id) {
+    agentsStore.load(props.conversation.workspace_id)
+  }
+})
+
+watch(() => props.conversation.workspace_id, (newId) => {
+  if (newId) {
+    agentsStore.load(newId)
+  }
+})
 
 const handleAssign = async (agentId: string | null | undefined) => {
   if (agentId === undefined) {
