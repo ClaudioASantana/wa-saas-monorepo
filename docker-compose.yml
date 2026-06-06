@@ -68,5 +68,25 @@ services:
     volumes:
       - wa_redis_data:/data
 
+  marketing:
+    build:
+      context: .
+      dockerfile: apps/marketing/Dockerfile
+    container_name: wa-marketing
+    restart: always
+    ports:
+      - '3002:3001'
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+
+  cloudflare-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: wa-cloudflare-tunnel
+    restart: always
+    command: tunnel --url http://api:4000
+    depends_on:
+      - api
+
 volumes:
   wa_redis_data:
