@@ -9,7 +9,9 @@
           variant="ghost"
           @click="goBack"
         />
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Meu Perfil</h1>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">
+          Meu Perfil
+        </h1>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -40,8 +42,10 @@
                 class="hidden"
                 accept="image/jpeg, image/png, image/webp"
                 @change="uploadAvatar"
-              />
-              <p class="text-xs text-slate-500 mt-2">JPG, PNG ou WebP. Máx 2MB.</p>
+              >
+              <p class="text-xs text-slate-500 mt-2">
+                JPG, PNG ou WebP. Máx 2MB.
+              </p>
             </div>
           </div>
         </UCard>
@@ -51,24 +55,55 @@
           <!-- Profile Data -->
           <UCard>
             <template #header>
-              <h2 class="text-lg font-medium text-slate-900 dark:text-white">Informações Pessoais</h2>
+              <h2 class="text-lg font-medium text-slate-900 dark:text-white">
+                Informações Pessoais
+              </h2>
             </template>
             
-            <UForm :state="profileState" :schema="profileSchema" @submit="saveProfile" class="space-y-4">
-              <UFormGroup label="E-mail" name="email">
-                <UInput v-model="profileState.email" disabled icon="i-heroicons-envelope" />
+            <UForm
+              :state="profileState"
+              :schema="profileSchema"
+              class="space-y-4"
+              @submit="saveProfile"
+            >
+              <UFormGroup
+                label="E-mail"
+                name="email"
+              >
+                <UInput
+                  v-model="profileState.email"
+                  disabled
+                  icon="i-heroicons-envelope"
+                />
               </UFormGroup>
 
-              <UFormGroup label="Nome Completo" name="name">
-                <UInput v-model="profileState.name" icon="i-heroicons-user" />
+              <UFormGroup
+                label="Nome Completo"
+                name="name"
+              >
+                <UInput
+                  v-model="profileState.name"
+                  icon="i-heroicons-user"
+                />
               </UFormGroup>
 
-              <UFormGroup label="Telefone" name="phone">
-                <UInput v-model="profileState.phone" icon="i-heroicons-phone" placeholder="+55 11 99999-9999" />
+              <UFormGroup
+                label="Telefone"
+                name="phone"
+              >
+                <UInput
+                  v-model="profileState.phone"
+                  icon="i-heroicons-phone"
+                  placeholder="+55 11 99999-9999"
+                />
               </UFormGroup>
 
               <div class="flex justify-end pt-2">
-                <UButton type="submit" color="primary" :loading="savingProfile">
+                <UButton
+                  type="submit"
+                  color="primary"
+                  :loading="savingProfile"
+                >
                   Salvar Alterações
                 </UButton>
               </div>
@@ -78,26 +113,58 @@
           <!-- Password -->
           <UCard>
             <template #header>
-              <h2 class="text-lg font-medium text-slate-900 dark:text-white">Alterar Senha</h2>
+              <h2 class="text-lg font-medium text-slate-900 dark:text-white">
+                Alterar Senha
+              </h2>
             </template>
 
-            <UForm :state="passwordState" :schema="passwordSchema" @submit="savePassword" class="space-y-4">
+            <UForm
+              :state="passwordState"
+              :schema="passwordSchema"
+              class="space-y-4"
+              @submit="savePassword"
+            >
               <!-- Note: Supabase auth.updateUser doesn't natively require current password for simple updates,
                    but we include it for UI completeness if needed later for re-auth. -->
-              <UFormGroup label="Senha Atual" name="currentPassword">
-                <UInput v-model="passwordState.currentPassword" type="password" icon="i-heroicons-lock-closed" />
+              <UFormGroup
+                label="Senha Atual"
+                name="currentPassword"
+              >
+                <UInput
+                  v-model="passwordState.currentPassword"
+                  type="password"
+                  icon="i-heroicons-lock-closed"
+                />
               </UFormGroup>
 
-              <UFormGroup label="Nova Senha" name="newPassword">
-                <UInput v-model="passwordState.newPassword" type="password" icon="i-heroicons-key" />
+              <UFormGroup
+                label="Nova Senha"
+                name="newPassword"
+              >
+                <UInput
+                  v-model="passwordState.newPassword"
+                  type="password"
+                  icon="i-heroicons-key"
+                />
               </UFormGroup>
 
-              <UFormGroup label="Confirmar Nova Senha" name="confirmPassword">
-                <UInput v-model="passwordState.confirmPassword" type="password" icon="i-heroicons-check-circle" />
+              <UFormGroup
+                label="Confirmar Nova Senha"
+                name="confirmPassword"
+              >
+                <UInput
+                  v-model="passwordState.confirmPassword"
+                  type="password"
+                  icon="i-heroicons-check-circle"
+                />
               </UFormGroup>
 
               <div class="flex justify-end pt-2">
-                <UButton type="submit" color="primary" :loading="savingPassword">
+                <UButton
+                  type="submit"
+                  color="primary"
+                  :loading="savingPassword"
+                >
                   Atualizar Senha
                 </UButton>
               </div>

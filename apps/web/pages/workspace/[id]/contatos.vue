@@ -6,7 +6,9 @@
       class="p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 flex justify-between items-center"
     >
       <div>
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Contatos</h1>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">
+          Contatos
+        </h1>
         <p class="text-sm text-slate-500 dark:text-slate-400">
           Gerencie os contatos do workspace.
         </p>

@@ -51,7 +51,10 @@
             class="mr-1"
           />
           <span class="max-w-[100px] truncate text-xs">{{ conversation.agent?.name || 'Agente' }}</span>
-          <UIcon name="i-heroicons-chevron-down" class="w-3 h-3 text-slate-400" />
+          <UIcon
+            name="i-heroicons-chevron-down"
+            class="w-3 h-3 text-slate-400"
+          />
         </UButton>
 
         <template #panel>

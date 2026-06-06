@@ -1,6 +1,9 @@
 <!-- apps/web/components/contacts/ContactModal.vue -->
 <template>
-  <UModal :model-value="open" @update:model-value="!$event && emit('close')">
+  <UModal
+    :model-value="open"
+    @update:model-value="!$event && emit('close')"
+  >
     <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
       <template #header>
         <div class="flex items-center justify-between">
@@ -17,13 +20,22 @@
         </div>
       </template>
 
-      <div v-if="contact" class="space-y-4 py-2">
+      <div
+        v-if="contact"
+        class="space-y-4 py-2"
+      >
         <UFormGroup label="Nome">
-          <UInput v-model="form.name" placeholder="Nome do contato" />
+          <UInput
+            v-model="form.name"
+            placeholder="Nome do contato"
+          />
         </UFormGroup>
 
         <UFormGroup label="Telefone">
-          <UInput v-model="form.phone" placeholder="+55 11 99999-9999" />
+          <UInput
+            v-model="form.phone"
+            placeholder="+55 11 99999-9999"
+          />
         </UFormGroup>
 
         <UFormGroup label="Notas">
@@ -55,7 +67,11 @@
             Ver Conversa
           </UButton>
           <div class="flex gap-3">
-            <UButton color="gray" variant="ghost" @click="emit('close')">
+            <UButton
+              color="gray"
+              variant="ghost"
+              @click="emit('close')"
+            >
               Cancelar
             </UButton>
             <UButton

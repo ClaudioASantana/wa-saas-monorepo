@@ -84,32 +84,67 @@ onMounted(() => {
 <template>
   <div>
     <div class="mb-6">
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Assinatura e Pagamento</h1>
-      <p class="text-gray-500 dark:text-gray-400 mt-1">Gerencie seu plano e limite de agentes.</p>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+        Assinatura e Pagamento
+      </h1>
+      <p class="text-gray-500 dark:text-gray-400 mt-1">
+        Gerencie seu plano e limite de agentes.
+      </p>
     </div>
 
-    <div v-if="pending" class="flex justify-center p-8">
-      <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 animate-spin text-gray-400" />
+    <div
+      v-if="pending"
+      class="flex justify-center p-8"
+    >
+      <UIcon
+        name="i-heroicons-arrow-path"
+        class="w-8 h-8 animate-spin text-gray-400"
+      />
     </div>
 
-    <div v-else-if="workspace" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div
+      v-else-if="workspace"
+      class="grid grid-cols-1 md:grid-cols-2 gap-6"
+    >
       <!-- Current Plan Card -->
       <UCard>
         <template #header>
-          <h2 class="text-lg font-semibold">Seu Plano Atual</h2>
+          <h2 class="text-lg font-semibold">
+            Seu Plano Atual
+          </h2>
         </template>
 
         <div class="space-y-4">
           <div class="flex items-center justify-between">
             <span class="text-gray-500 dark:text-gray-400">Plano</span>
-            <UBadge :color="isPro ? 'primary' : 'gray'" size="lg">{{ planName }}</UBadge>
+            <UBadge
+              :color="isPro ? 'primary' : 'gray'"
+              size="lg"
+            >
+              {{ planName }}
+            </UBadge>
           </div>
           
           <div class="flex items-center justify-between">
             <span class="text-gray-500 dark:text-gray-400">Status</span>
-            <UBadge v-if="hasActiveSubscription" color="green">Ativo</UBadge>
-            <UBadge v-else-if="isCanceled" color="red">Cancelado / Expirado</UBadge>
-            <UBadge v-else color="gray">Gratuito / Sem assinatura</UBadge>
+            <UBadge
+              v-if="hasActiveSubscription"
+              color="green"
+            >
+              Ativo
+            </UBadge>
+            <UBadge
+              v-else-if="isCanceled"
+              color="red"
+            >
+              Cancelado / Expirado
+            </UBadge>
+            <UBadge
+              v-else
+              color="gray"
+            >
+              Gratuito / Sem assinatura
+            </UBadge>
           </div>
 
           <div class="flex items-center justify-between">
@@ -137,7 +172,9 @@ onMounted(() => {
       <!-- Upgrade/Downgrade Card -->
       <UCard>
         <template #header>
-          <h2 class="text-lg font-semibold">Mudar de Plano</h2>
+          <h2 class="text-lg font-semibold">
+            Mudar de Plano
+          </h2>
         </template>
         
         <div class="space-y-4">
@@ -146,19 +183,57 @@ onMounted(() => {
           </p>
           
           <div class="flex gap-4">
-            <UCard class="flex-1 cursor-pointer border-2 hover:border-primary-500 transition-colors" :class="{'border-primary-500 ring-1 ring-primary-500': !isPro, 'border-gray-200 dark:border-gray-800': isPro}">
+            <UCard
+              class="flex-1 cursor-pointer border-2 hover:border-primary-500 transition-colors"
+              :class="{'border-primary-500 ring-1 ring-primary-500': !isPro, 'border-gray-200 dark:border-gray-800': isPro}"
+            >
               <div class="text-center">
-                <h3 class="font-bold mb-2">Starter</h3>
-                <UButton v-if="isPro" block color="gray" :loading="loadingCheckout" @click="handleCheckout('starter')">Fazer Downgrade</UButton>
-                <UBadge v-else color="green" class="w-full justify-center">Plano Atual</UBadge>
+                <h3 class="font-bold mb-2">
+                  Starter
+                </h3>
+                <UButton
+                  v-if="isPro"
+                  block
+                  color="gray"
+                  :loading="loadingCheckout"
+                  @click="handleCheckout('starter')"
+                >
+                  Fazer Downgrade
+                </UButton>
+                <UBadge
+                  v-else
+                  color="green"
+                  class="w-full justify-center"
+                >
+                  Plano Atual
+                </UBadge>
               </div>
             </UCard>
             
-            <UCard class="flex-1 cursor-pointer border-2 hover:border-primary-500 transition-colors" :class="{'border-primary-500 ring-1 ring-primary-500': isPro, 'border-gray-200 dark:border-gray-800': !isPro}">
+            <UCard
+              class="flex-1 cursor-pointer border-2 hover:border-primary-500 transition-colors"
+              :class="{'border-primary-500 ring-1 ring-primary-500': isPro, 'border-gray-200 dark:border-gray-800': !isPro}"
+            >
               <div class="text-center">
-                <h3 class="font-bold mb-2 text-primary-500">Pro</h3>
-                <UButton v-if="!isPro" block color="primary" :loading="loadingCheckout" @click="handleCheckout('pro')">Fazer Upgrade</UButton>
-                <UBadge v-else color="green" class="w-full justify-center">Plano Atual</UBadge>
+                <h3 class="font-bold mb-2 text-primary-500">
+                  Pro
+                </h3>
+                <UButton
+                  v-if="!isPro"
+                  block
+                  color="primary"
+                  :loading="loadingCheckout"
+                  @click="handleCheckout('pro')"
+                >
+                  Fazer Upgrade
+                </UButton>
+                <UBadge
+                  v-else
+                  color="green"
+                  class="w-full justify-center"
+                >
+                  Plano Atual
+                </UBadge>
               </div>
             </UCard>
           </div>

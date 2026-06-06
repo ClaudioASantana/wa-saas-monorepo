@@ -2,8 +2,12 @@
   <div class="space-y-6">
     <div class="flex justify-between items-center">
       <div>
-        <h3 class="text-lg font-medium">Tags</h3>
-        <p class="text-sm text-slate-500">Tags coloridas para organizar suas conversas.</p>
+        <h3 class="text-lg font-medium">
+          Tags
+        </h3>
+        <p class="text-sm text-slate-500">
+          Tags coloridas para organizar suas conversas.
+        </p>
       </div>
       <UButton
         icon="i-heroicons-plus"
@@ -54,25 +58,65 @@
             <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
               {{ form.id ? 'Editar Tag' : 'Nova Tag' }}
             </h3>
-            <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="isModalOpen = false" />
+            <UButton
+              color="gray"
+              variant="ghost"
+              icon="i-heroicons-x-mark-20-solid"
+              class="-my-1"
+              @click="isModalOpen = false"
+            />
           </div>
         </template>
 
-        <form @submit.prevent="saveItem" class="space-y-4">
-          <UFormGroup label="Nome" name="name" required>
-            <UInput v-model="form.name" placeholder="ex: Urgente" />
+        <form
+          class="space-y-4"
+          @submit.prevent="saveItem"
+        >
+          <UFormGroup
+            label="Nome"
+            name="name"
+            required
+          >
+            <UInput
+              v-model="form.name"
+              placeholder="ex: Urgente"
+            />
           </UFormGroup>
 
-          <UFormGroup label="Cor" name="color" required>
+          <UFormGroup
+            label="Cor"
+            name="color"
+            required
+          >
             <div class="flex items-center gap-3">
-              <UInput v-model="form.color" type="color" class="w-12 h-10 p-1" />
-              <UInput v-model="form.color" placeholder="#000000" class="flex-1" />
+              <UInput
+                v-model="form.color"
+                type="color"
+                class="w-12 h-10 p-1"
+              />
+              <UInput
+                v-model="form.color"
+                placeholder="#000000"
+                class="flex-1"
+              />
             </div>
           </UFormGroup>
 
           <div class="flex justify-end gap-3 pt-4">
-            <UButton color="gray" variant="ghost" @click="isModalOpen = false">Cancelar</UButton>
-            <UButton type="submit" color="primary" :loading="saving">Salvar</UButton>
+            <UButton
+              color="gray"
+              variant="ghost"
+              @click="isModalOpen = false"
+            >
+              Cancelar
+            </UButton>
+            <UButton
+              type="submit"
+              color="primary"
+              :loading="saving"
+            >
+              Salvar
+            </UButton>
           </div>
         </form>
       </UCard>

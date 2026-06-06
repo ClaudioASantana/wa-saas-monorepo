@@ -20,16 +20,24 @@
 
     <UDivider />
 
-    <div v-if="pending" class="space-y-4">
+    <div
+      v-if="pending"
+      class="space-y-4"
+    >
       <USkeleton class="h-8 w-full max-w-sm" />
       <USkeleton class="h-8 w-full max-w-sm" />
     </div>
 
-    <div v-else class="space-y-8">
+    <div
+      v-else
+      class="space-y-8"
+    >
       <!-- Round Robin -->
       <div class="flex items-start justify-between">
         <div>
-          <h4 class="text-sm font-medium text-gray-900 dark:text-white">Round-Robin</h4>
+          <h4 class="text-sm font-medium text-gray-900 dark:text-white">
+            Round-Robin
+          </h4>
           <p class="text-sm text-gray-500">
             Distribui as conversas ciclicamente entre os agentes com status "Ativo".
           </p>
@@ -39,7 +47,9 @@
 
       <!-- Retenção -->
       <div>
-        <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-1">Retenção de Atendimento</h4>
+        <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-1">
+          Retenção de Atendimento
+        </h4>
         <p class="text-sm text-gray-500 mb-3">
           Tempo em dias para que um contato que retornar seja direcionado ao mesmo agente. 
           Se 0, a retenção é desativada.
@@ -60,13 +70,14 @@
 
       <!-- Tag Routing Placeholder -->
       <div>
-        <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-1">Distribuição por Tags</h4>
+        <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-1">
+          Distribuição por Tags
+        </h4>
         <p class="text-sm text-gray-500 mb-3">
           (Em breve) Atribua conversas automaticamente a um grupo de agentes com base na tag inicial da conversa.
         </p>
         <UAlert
           icon="i-heroicons-information-circle"
-          color="gray"
           variant="soft"
           title="Funcionalidade em desenvolvimento"
         />
@@ -92,7 +103,7 @@ const config = ref({
 
 const saving = ref(false)
 
-const { pending, refresh } = useAsyncData(`routing-${props.workspaceId}`, async () => {
+const { pending } = useAsyncData(`routing-${props.workspaceId}`, async () => {
   try {
     const data = await $fetch(`/api/workspace/${props.workspaceId}/routing`)
     if (data) {

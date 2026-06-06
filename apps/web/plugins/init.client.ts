@@ -1,6 +1,6 @@
 import { useUserStore } from '~/stores/user'
 
-export default defineNuxtPlugin((nuxtApp) => {
+export default defineNuxtPlugin(() => {
   const user = useSupabaseUser()
   
   // Trigger initialization right away if session exists

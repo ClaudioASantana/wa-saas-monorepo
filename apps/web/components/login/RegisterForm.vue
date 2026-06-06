@@ -1,10 +1,24 @@
 <template>
-  <form @submit.prevent="handleSubmit" class="space-y-4">
-    <UFormGroup label="Nome Completo" required>
-      <UInput v-model="name" type="text" placeholder="João Silva" icon="i-heroicons-user" />
+  <form
+    class="space-y-4"
+    @submit.prevent="handleSubmit"
+  >
+    <UFormGroup
+      label="Nome Completo"
+      required
+    >
+      <UInput
+        v-model="name"
+        type="text"
+        placeholder="João Silva"
+        icon="i-heroicons-user"
+      />
     </UFormGroup>
 
-    <UFormGroup label="Email" required>
+    <UFormGroup
+      label="Email"
+      required
+    >
       <UInput
         v-model="email"
         type="email"
@@ -13,7 +27,11 @@
       />
     </UFormGroup>
 
-    <UFormGroup label="Senha" required help="Mínimo 6 caracteres para a senha.">
+    <UFormGroup
+      label="Senha"
+      required
+      help="Mínimo 6 caracteres para a senha."
+    >
       <UInput
         v-model="password"
         type="password"
@@ -29,7 +47,14 @@
       {{ error }}
     </div>
 
-    <UButton type="submit" block color="primary" :loading="loading" size="lg" class="mt-4">
+    <UButton
+      type="submit"
+      block
+      color="primary"
+      :loading="loading"
+      size="lg"
+      class="mt-4"
+    >
       Criar Conta
     </UButton>
   </form>

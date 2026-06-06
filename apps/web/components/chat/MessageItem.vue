@@ -61,10 +61,16 @@
           class="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-900/50 rounded border border-slate-100 dark:border-slate-800 mb-1"
         >
           <div class="w-10 h-10 flex-shrink-0 bg-red-100 dark:bg-red-900/30 flex items-center justify-center rounded text-red-600 dark:text-red-400">
-            <UIcon name="i-heroicons-document-text" class="w-6 h-6" />
+            <UIcon
+              name="i-heroicons-document-text"
+              class="w-6 h-6"
+            />
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-xs font-medium truncate" :class="isOutbound ? 'text-slate-900 dark:text-slate-200' : ''">
+            <p
+              class="text-xs font-medium truncate"
+              :class="isOutbound ? 'text-slate-900 dark:text-slate-200' : ''"
+            >
               {{ message.body || message.content || 'Documento' }}
             </p>
             <a

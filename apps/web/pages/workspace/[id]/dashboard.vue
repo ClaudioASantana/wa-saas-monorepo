@@ -2,8 +2,12 @@
   <div class="p-6 max-w-7xl mx-auto space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400">Visão geral do workspace.</p>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">
+          Dashboard
+        </h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400">
+          Visão geral do workspace.
+        </p>
       </div>
       <UButton
         icon="i-heroicons-arrow-path"
@@ -22,14 +26,19 @@
       <UCard>
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Conversas Abertas</p>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Conversas Abertas
+            </p>
             <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1">
               <span v-if="pending"><USkeleton class="h-8 w-12" /></span>
               <span v-else>{{ metrics?.openConversations ?? 0 }}</span>
             </p>
           </div>
           <div class="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-            <UIcon name="i-heroicons-chat-bubble-left-right" class="w-5 h-5 text-blue-500" />
+            <UIcon
+              name="i-heroicons-chat-bubble-left-right"
+              class="w-5 h-5 text-blue-500"
+            />
           </div>
         </div>
       </UCard>
@@ -37,14 +46,19 @@
       <UCard>
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Mensagens Hoje</p>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Mensagens Hoje
+            </p>
             <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1">
               <span v-if="pending"><USkeleton class="h-8 w-12" /></span>
               <span v-else>{{ metrics?.messagesToday ?? 0 }}</span>
             </p>
           </div>
           <div class="w-10 h-10 rounded-full bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
-            <UIcon name="i-heroicons-chat-bubble-oval-left-ellipsis" class="w-5 h-5 text-green-500" />
+            <UIcon
+              name="i-heroicons-chat-bubble-oval-left-ellipsis"
+              class="w-5 h-5 text-green-500"
+            />
           </div>
         </div>
       </UCard>
@@ -52,14 +66,19 @@
       <UCard>
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Total de Contatos</p>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Total de Contatos
+            </p>
             <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1">
               <span v-if="pending"><USkeleton class="h-8 w-12" /></span>
               <span v-else>{{ metrics?.totalContacts ?? 0 }}</span>
             </p>
           </div>
           <div class="w-10 h-10 rounded-full bg-violet-50 dark:bg-violet-900/30 flex items-center justify-center">
-            <UIcon name="i-heroicons-users" class="w-5 h-5 text-violet-500" />
+            <UIcon
+              name="i-heroicons-users"
+              class="w-5 h-5 text-violet-500"
+            />
           </div>
         </div>
       </UCard>
@@ -67,14 +86,19 @@
       <UCard>
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Resolvidas Hoje</p>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Resolvidas Hoje
+            </p>
             <p class="text-3xl font-bold text-slate-900 dark:text-white mt-1">
               <span v-if="pending"><USkeleton class="h-8 w-12" /></span>
               <span v-else>{{ metrics?.resolvedToday ?? 0 }}</span>
             </p>
           </div>
           <div class="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-            <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-emerald-500" />
+            <UIcon
+              name="i-heroicons-check-circle"
+              class="w-5 h-5 text-emerald-500"
+            />
           </div>
         </div>
       </UCard>
@@ -84,7 +108,9 @@
     <UCard>
       <template #header>
         <div class="flex items-center justify-between">
-          <h2 class="text-base font-semibold text-slate-900 dark:text-white">Conversas Recentes</h2>
+          <h2 class="text-base font-semibold text-slate-900 dark:text-white">
+            Conversas Recentes
+          </h2>
           <UButton
             :to="`/workspace/${workspaceId}/chat`"
             size="xs"
@@ -98,29 +124,54 @@
         </div>
       </template>
 
-      <div v-if="pending" class="space-y-3">
-        <USkeleton v-for="i in 5" :key="i" class="h-14 w-full" />
+      <div
+        v-if="pending"
+        class="space-y-3"
+      >
+        <USkeleton
+          v-for="i in 5"
+          :key="i"
+          class="h-14 w-full"
+        />
       </div>
 
-      <div v-else-if="!recentConversations?.length" class="text-center py-8">
-        <UIcon name="i-heroicons-chat-bubble-left-right" class="w-10 h-10 text-slate-200 dark:text-slate-700 mx-auto mb-3" />
-        <p class="text-sm text-slate-500">Nenhuma conversa ainda.</p>
-        <p class="text-xs text-slate-400 mt-1">As mensagens aparecerão aqui quando chegarem via Evolution API.</p>
+      <div
+        v-else-if="!recentConversations?.length"
+        class="text-center py-8"
+      >
+        <UIcon
+          name="i-heroicons-chat-bubble-left-right"
+          class="w-10 h-10 text-slate-200 dark:text-slate-700 mx-auto mb-3"
+        />
+        <p class="text-sm text-slate-500">
+          Nenhuma conversa ainda.
+        </p>
+        <p class="text-xs text-slate-400 mt-1">
+          As mensagens aparecerão aqui quando chegarem via Evolution API.
+        </p>
       </div>
 
-      <ul v-else class="divide-y divide-slate-100 dark:divide-slate-800">
+      <ul
+        v-else
+        class="divide-y divide-slate-100 dark:divide-slate-800"
+      >
         <li
           v-for="conv in recentConversations"
           :key="conv.id"
           class="flex items-center justify-between py-3 gap-4"
         >
           <div class="flex items-center gap-3 min-w-0">
-            <UAvatar :alt="conv.contact?.name || conv.contact?.phone || '?'" size="sm" />
+            <UAvatar
+              :alt="conv.contact?.name || conv.contact?.phone || '?'"
+              size="sm"
+            />
             <div class="min-w-0">
               <p class="text-sm font-semibold text-slate-900 dark:text-white truncate">
                 {{ conv.contact?.name || conv.contact?.phone || 'Desconhecido' }}
               </p>
-              <p class="text-xs text-slate-500 truncate">{{ conv.last_message_preview || '—' }}</p>
+              <p class="text-xs text-slate-500 truncate">
+                {{ conv.last_message_preview || '—' }}
+              </p>
             </div>
           </div>
           <div class="flex items-center gap-3 shrink-0">

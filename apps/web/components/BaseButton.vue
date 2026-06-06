@@ -9,7 +9,10 @@
     :disabled="disabled || loading"
     @click="$emit('click')"
   >
-    <span v-if="loading" class="mr-2 inline-block animate-spin">⚪</span>
+    <span
+      v-if="loading"
+      class="mr-2 inline-block animate-spin"
+    >⚪</span>
     <slot />
   </button>
 </template>

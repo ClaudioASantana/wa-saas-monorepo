@@ -1,10 +1,12 @@
 <template>
   <div 
-    @click="$emit('open-chat', card.conversation_id)"
     class="bg-white dark:bg-gray-800 p-3 rounded-md shadow-sm border border-gray-200 dark:border-gray-700 cursor-move relative hover:border-primary-500 transition-colors"
+    @click="$emit('open-chat', card.conversation_id)"
   >
     <div class="flex justify-between items-start mb-2">
-      <div class="font-medium text-sm text-gray-900 dark:text-white truncate pr-6">{{ card.conversation?.contact?.name || 'Desconhecido' }}</div>
+      <div class="font-medium text-sm text-gray-900 dark:text-white truncate pr-6">
+        {{ card.conversation?.contact?.name || 'Desconhecido' }}
+      </div>
       <UButton
         icon="i-heroicons-x-mark"
         color="gray"
@@ -21,7 +23,13 @@
       <span class="text-[10px] text-gray-400">
         {{ card.conversation?.last_message_at ? new Date(card.conversation.last_message_at).toLocaleDateString() : '' }}
       </span>
-      <UBadge v-if="hasNewMessages" color="red" size="xs">Nova Mensagem</UBadge>
+      <UBadge
+        v-if="hasNewMessages"
+        color="red"
+        size="xs"
+      >
+        Nova Mensagem
+      </UBadge>
     </div>
   </div>
 </template>

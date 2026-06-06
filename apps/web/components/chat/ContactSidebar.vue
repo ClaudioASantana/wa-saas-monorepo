@@ -23,13 +23,18 @@
         <UDivider />
         <div class="space-y-2">
           <div class="flex items-center space-x-2 text-xs text-slate-500">
-            <UIcon name="i-heroicons-calendar" class="w-4 h-4" />
+            <UIcon
+              name="i-heroicons-calendar"
+              class="w-4 h-4"
+            />
             <span>Desde {{ formatDate(createdAt || '') }}</span>
           </div>
         </div>
         <div>
           <div class="flex items-center justify-between mb-2">
-            <p class="text-xs font-medium text-slate-500">Anotações</p>
+            <p class="text-xs font-medium text-slate-500">
+              Anotações
+            </p>
             <UButton
               v-if="notes !== contact.notes"
               size="xs"
@@ -41,12 +46,26 @@
               Salvar
             </UButton>
           </div>
-          <UTextarea v-model="notes" placeholder="Notas sobre este contato..." :rows="4" class="text-sm" :disabled="saving" />
+          <UTextarea
+            v-model="notes"
+            placeholder="Notas sobre este contato..."
+            :rows="4"
+            class="text-sm"
+            :disabled="saving"
+          />
         </div>
       </template>
-      <div v-else class="flex flex-col items-center justify-center h-full text-center">
-        <UIcon name="i-heroicons-user" class="w-8 h-8 text-slate-200 mb-2" />
-        <p class="text-xs text-slate-400">Selecione uma conversa</p>
+      <div
+        v-else
+        class="flex flex-col items-center justify-center h-full text-center"
+      >
+        <UIcon
+          name="i-heroicons-user"
+          class="w-8 h-8 text-slate-200 mb-2"
+        />
+        <p class="text-xs text-slate-400">
+          Selecione uma conversa
+        </p>
       </div>
     </div>
   </div>

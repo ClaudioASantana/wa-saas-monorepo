@@ -27,7 +27,7 @@ server.register(cors, { origin: true });
 queueService.startCommandWorker(instanceManager);
 
 // API Routes
-server.post('/instances/:id/start', async (request, reply) => {
+server.post('/instances/:id/start', async (request) => {
   const { id } = request.params as { id: string };
   await instanceManager.startInstance(id);
   return { success: true, message: `Instance ${id} started or starting.` };

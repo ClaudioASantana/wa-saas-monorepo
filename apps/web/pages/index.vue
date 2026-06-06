@@ -9,8 +9,7 @@
           <div class="flex items-center">
             <span
               class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-primary-700"
-              >Flux CRM</span
-            >
+            >Flux CRM</span>
           </div>
           <div class="flex items-center space-x-4">
             <span class="text-sm font-medium text-slate-700 dark:text-slate-300">{{
@@ -20,8 +19,8 @@
               color="gray"
               variant="ghost"
               icon="i-heroicons-arrow-right-on-rectangle"
-              @click="logout"
               :loading="loading"
+              @click="logout"
             />
           </div>
         </div>
@@ -39,31 +38,55 @@
             Gerencie suas agências e clientes a partir daqui.
           </p>
         </div>
-        <UButton icon="i-heroicons-plus" color="primary" @click="isModalOpen = true">
+        <UButton
+          icon="i-heroicons-plus"
+          color="primary"
+          @click="isModalOpen = true"
+        >
           Novo Workspace
         </UButton>
       </div>
 
       <!-- Workspaces Grid -->
-      <div v-if="pending" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <USkeleton class="h-48 w-full" v-for="i in 3" :key="i" />
+      <div
+        v-if="pending"
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+      >
+        <USkeleton
+          v-for="i in 3"
+          :key="i"
+          class="h-48 w-full"
+        />
       </div>
 
       <div
         v-else-if="workspaces?.length === 0"
         class="text-center py-24 px-6 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-xl"
       >
-        <UIcon name="i-heroicons-building-office-2" class="mx-auto h-12 w-12 text-slate-400" />
-        <h3 class="mt-2 text-sm font-semibold text-slate-900 dark:text-white">Nenhum workspace</h3>
+        <UIcon
+          name="i-heroicons-building-office-2"
+          class="mx-auto h-12 w-12 text-slate-400"
+        />
+        <h3 class="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
+          Nenhum workspace
+        </h3>
         <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Comece criando um novo workspace para sua equipe.
         </p>
         <div class="mt-6">
-          <UButton icon="i-heroicons-plus" @click="isModalOpen = true">Criar Workspace</UButton>
+          <UButton
+            icon="i-heroicons-plus"
+            @click="isModalOpen = true"
+          >
+            Criar Workspace
+          </UButton>
         </div>
       </div>
 
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div
+        v-else
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+      >
         <UCard
           v-for="rel in workspaces"
           :key="rel.workspace_id"
@@ -121,24 +144,45 @@
         </template>
 
         <template #default>
-          <form @submit.prevent="createWorkspace" class="space-y-4">
-            <UFormGroup label="Nome do Workspace" required>
+          <form
+            class="space-y-4"
+            @submit.prevent="createWorkspace"
+          >
+            <UFormGroup
+              label="Nome do Workspace"
+              required
+            >
               <UInput
                 v-model="newWorkspaceName"
                 placeholder="Ex: Agência Plus"
                 icon="i-heroicons-building-office"
               />
             </UFormGroup>
-            <div v-if="createError" class="text-sm text-red-500">{{ createError }}</div>
+            <div
+              v-if="createError"
+              class="text-sm text-red-500"
+            >
+              {{ createError }}
+            </div>
           </form>
         </template>
 
         <template #footer>
           <div class="flex justify-end space-x-3">
-            <UButton color="gray" variant="ghost" @click="isModalOpen = false">Cancelar</UButton>
-            <UButton color="primary" @click="createWorkspace" :loading="creatingWorkspace"
-              >Salvar</UButton
+            <UButton
+              color="gray"
+              variant="ghost"
+              @click="isModalOpen = false"
             >
+              Cancelar
+            </UButton>
+            <UButton
+              color="primary"
+              :loading="creatingWorkspace"
+              @click="createWorkspace"
+            >
+              Salvar
+            </UButton>
           </div>
         </template>
       </UCard>

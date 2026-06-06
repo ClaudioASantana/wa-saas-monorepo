@@ -11,8 +11,14 @@
 
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
       <UCard>
-        <form class="space-y-4" @submit.prevent="handleSubmit">
-          <UFormGroup label="Nova Senha" required>
+        <form
+          class="space-y-4"
+          @submit.prevent="handleSubmit"
+        >
+          <UFormGroup
+            label="Nova Senha"
+            required
+          >
             <UInput
               v-model="password"
               type="password"
@@ -22,7 +28,10 @@
             />
           </UFormGroup>
 
-          <UFormGroup label="Confirmar Nova Senha" required>
+          <UFormGroup
+            label="Confirmar Nova Senha"
+            required
+          >
             <UInput
               v-model="confirm"
               type="password"

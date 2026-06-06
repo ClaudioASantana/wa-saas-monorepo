@@ -117,7 +117,7 @@ export default defineNitroPlugin((nitroApp) => {
 
   // Hook 2: Fallback for Dev mode (Capture server from first request)
   if (process.dev) {
-    ;(nitroApp.hooks as any).hook('request', (event: any) => {
+    (nitroApp.hooks as any).hook('request', (event: any) => {
       if (!global[GLOBAL_KEY]) {
         const server = event.node?.res?.socket?.server
         if (server) {

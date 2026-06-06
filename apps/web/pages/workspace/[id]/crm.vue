@@ -5,25 +5,45 @@
       class="p-6 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 flex justify-between items-center"
     >
       <div>
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">CRM Kanban</h1>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">
+          CRM Kanban
+        </h1>
         <p class="text-sm text-slate-500 dark:text-slate-400">
           Gerencie seus leads a partir das conversas do WhatsApp.
         </p>
       </div>
-      <UButton icon="i-heroicons-plus" color="primary" @click="openPromoteModal()">
+      <UButton
+        icon="i-heroicons-plus"
+        color="primary"
+        @click="openPromoteModal()"
+      >
         Adicionar ao CRM
       </UButton>
     </div>
 
     <!-- Kanban Board -->
-    <div v-if="pendingStages" class="flex-1 p-6 flex gap-6">
-      <div v-for="i in 4" :key="i" class="w-80 shrink-0 space-y-3">
+    <div
+      v-if="pendingStages"
+      class="flex-1 p-6 flex gap-6"
+    >
+      <div
+        v-for="i in 4"
+        :key="i"
+        class="w-80 shrink-0 space-y-3"
+      >
         <USkeleton class="h-6 w-40" />
-        <USkeleton v-for="j in 2" :key="j" class="h-24 w-full" />
+        <USkeleton
+          v-for="j in 2"
+          :key="j"
+          class="h-24 w-full"
+        />
       </div>
     </div>
 
-    <div v-else class="flex-1 overflow-hidden bg-slate-50 dark:bg-slate-950 p-4">
+    <div
+      v-else
+      class="flex-1 overflow-hidden bg-slate-50 dark:bg-slate-950 p-4"
+    >
       <KanbanBoard
         v-if="stages && stages.length > 0"
         :stages="stages"
@@ -32,12 +52,27 @@
         @add-conversation="openPromoteModal"
         @open-chat="handleOpenChat"
       />
-      <div v-else class="flex items-center justify-center h-full">
+      <div
+        v-else
+        class="flex items-center justify-center h-full"
+      >
         <div class="text-center">
-          <UIcon name="i-heroicons-clipboard-document-list" class="w-12 h-12 text-slate-400 mx-auto mb-4" />
-          <h3 class="text-lg font-medium text-slate-900 dark:text-white">Nenhum funil configurado</h3>
-          <p class="text-slate-500 dark:text-slate-400 mb-4">Crie um funil para começar a gerenciar seus leads.</p>
-          <UButton @click="initializeFunnel" :loading="initializing">Criar Funil Padrão</UButton>
+          <UIcon
+            name="i-heroicons-clipboard-document-list"
+            class="w-12 h-12 text-slate-400 mx-auto mb-4"
+          />
+          <h3 class="text-lg font-medium text-slate-900 dark:text-white">
+            Nenhum funil configurado
+          </h3>
+          <p class="text-slate-500 dark:text-slate-400 mb-4">
+            Crie um funil para começar a gerenciar seus leads.
+          </p>
+          <UButton
+            :loading="initializing"
+            @click="initializeFunnel"
+          >
+            Criar Funil Padrão
+          </UButton>
         </div>
       </div>
     </div>
@@ -46,7 +81,9 @@
     <UModal v-model="isPromoteModalOpen">
       <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
         <template #header>
-          <h3 class="text-base font-semibold text-gray-900 dark:text-white">Adicionar conversa ao CRM</h3>
+          <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+            Adicionar conversa ao CRM
+          </h3>
         </template>
 
         <div class="space-y-4">
@@ -60,7 +97,10 @@
             >
               <template #label>
                 <span v-if="promoteTarget">{{ promoteTarget.label }}</span>
-                <span v-else class="text-gray-400 dark:text-gray-500">Selecionar conversa...</span>
+                <span
+                  v-else
+                  class="text-gray-400 dark:text-gray-500"
+                >Selecionar conversa...</span>
               </template>
             </USelectMenu>
           </UFormGroup>
@@ -78,7 +118,13 @@
 
         <template #footer>
           <div class="flex justify-end gap-3">
-            <UButton color="gray" variant="ghost" @click="isPromoteModalOpen = false">Cancelar</UButton>
+            <UButton
+              color="gray"
+              variant="ghost"
+              @click="isPromoteModalOpen = false"
+            >
+              Cancelar
+            </UButton>
             <UButton
               color="primary"
               icon="i-heroicons-arrow-up-circle"

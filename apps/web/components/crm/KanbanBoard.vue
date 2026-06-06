@@ -8,9 +8,20 @@
       <!-- Column Header -->
       <div class="p-3 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
         <div class="flex items-center gap-2">
-          <div class="w-3 h-3 rounded-full" :class="`bg-${stage.color || 'blue'}-500`"></div>
-          <h3 class="font-semibold text-gray-700 dark:text-gray-200">{{ stage.name }}</h3>
-          <UBadge color="gray" variant="soft" size="xs">{{ stage.crm_cards?.length || 0 }}</UBadge>
+          <div
+            class="w-3 h-3 rounded-full"
+            :class="`bg-${stage.color || 'blue'}-500`"
+          />
+          <h3 class="font-semibold text-gray-700 dark:text-gray-200">
+            {{ stage.name }}
+          </h3>
+          <UBadge
+            color="gray"
+            variant="soft"
+            size="xs"
+          >
+            {{ stage.crm_cards?.length || 0 }}
+          </UBadge>
         </div>
       </div>
 

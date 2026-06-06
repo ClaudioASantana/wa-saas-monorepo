@@ -11,8 +11,15 @@
 
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
       <UCard>
-        <form v-if="!sent" class="space-y-4" @submit.prevent="handleSubmit">
-          <UFormGroup label="E-mail" required>
+        <form
+          v-if="!sent"
+          class="space-y-4"
+          @submit.prevent="handleSubmit"
+        >
+          <UFormGroup
+            label="E-mail"
+            required
+          >
             <UInput
               v-model="email"
               type="email"
@@ -29,7 +36,13 @@
             {{ error }}
           </div>
 
-          <UButton type="submit" block color="primary" :loading="loading" size="lg">
+          <UButton
+            type="submit"
+            block
+            color="primary"
+            :loading="loading"
+            size="lg"
+          >
             Enviar Link de Recuperação
           </UButton>
 
@@ -43,8 +56,14 @@
           </div>
         </form>
 
-        <div v-else class="text-center space-y-4 py-4">
-          <UIcon name="i-heroicons-envelope-open" class="w-12 h-12 text-primary-500 mx-auto" />
+        <div
+          v-else
+          class="text-center space-y-4 py-4"
+        >
+          <UIcon
+            name="i-heroicons-envelope-open"
+            class="w-12 h-12 text-primary-500 mx-auto"
+          />
           <p class="text-slate-700 dark:text-slate-300 font-medium">
             Se este e-mail estiver cadastrado, você receberá um link em breve.
           </p>

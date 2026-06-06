@@ -52,7 +52,7 @@ export class RoutingService {
     return agentId
   }
 
-  async findAgentByTag(tagId: string, tenantId: string): Promise<string | null> {
+  async findAgentByTag(/* tagId: string, tenantId: string */): Promise<string | null> {
     return null
   }
 

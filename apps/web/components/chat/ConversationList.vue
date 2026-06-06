@@ -25,7 +25,10 @@
           class="w-24"
         >
           <template #label>
-            <UIcon name="i-heroicons-tag" class="w-4 h-4" />
+            <UIcon
+              name="i-heroicons-tag"
+              class="w-4 h-4"
+            />
           </template>
         </USelectMenu>
       </div>

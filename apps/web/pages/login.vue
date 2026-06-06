@@ -17,25 +17,25 @@
         <div class="flex border-b border-gray-200 dark:border-gray-800 mb-6">
           <button
             type="button"
-            @click="switchTab(true)"
             class="flex-1 py-2 text-center font-medium text-sm transition-colors"
             :class="
               isLogin
                 ? 'border-b-2 border-primary-500 text-primary-600 dark:text-primary-400'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             "
+            @click="switchTab(true)"
           >
             Login
           </button>
           <button
             type="button"
-            @click="switchTab(false)"
             class="flex-1 py-2 text-center font-medium text-sm transition-colors"
             :class="
               !isLogin
                 ? 'border-b-2 border-primary-500 text-primary-600 dark:text-primary-400'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             "
+            @click="switchTab(false)"
           >
             Cadastro
           </button>

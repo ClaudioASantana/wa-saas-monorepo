@@ -2,8 +2,12 @@
   <div class="space-y-6">
     <div class="flex justify-between items-center">
       <div>
-        <h3 class="text-lg font-medium">Quick Replies</h3>
-        <p class="text-sm text-slate-500">Respostas rápidas para agilizar o atendimento.</p>
+        <h3 class="text-lg font-medium">
+          Quick Replies
+        </h3>
+        <p class="text-sm text-slate-500">
+          Respostas rápidas para agilizar o atendimento.
+        </p>
       </div>
       <UButton
         icon="i-heroicons-plus"
@@ -53,23 +57,62 @@
             <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
               {{ form.id ? 'Editar Resposta' : 'Nova Resposta' }}
             </h3>
-            <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="isModalOpen = false" />
+            <UButton
+              color="gray"
+              variant="ghost"
+              icon="i-heroicons-x-mark-20-solid"
+              class="-my-1"
+              @click="isModalOpen = false"
+            />
           </div>
         </template>
 
-        <form @submit.prevent="saveItem" class="space-y-4">
-          <UFormGroup label="Nome/Atalho" name="shortcut" required help="Use /nome no chat para acionar">
-            <UInput v-model="form.shortcut" placeholder="ex: saudacao" />
+        <form
+          class="space-y-4"
+          @submit.prevent="saveItem"
+        >
+          <UFormGroup
+            label="Nome/Atalho"
+            name="shortcut"
+            required
+            help="Use /nome no chat para acionar"
+          >
+            <UInput
+              v-model="form.shortcut"
+              placeholder="ex: saudacao"
+            />
           </UFormGroup>
 
-          <UFormGroup label="Conteúdo" name="content" required>
-            <UTextarea v-model="form.content" placeholder="Olá {contato}, como posso ajudar?" rows="4" />
-            <p class="mt-1 text-xs text-slate-400">Dica: use {contato} para o nome do cliente.</p>
+          <UFormGroup
+            label="Conteúdo"
+            name="content"
+            required
+          >
+            <UTextarea
+              v-model="form.content"
+              placeholder="Olá {contato}, como posso ajudar?"
+              :rows="4"
+            />
+            <p class="mt-1 text-xs text-slate-400">
+              Dica: use {contato} para o nome do cliente.
+            </p>
           </UFormGroup>
 
           <div class="flex justify-end gap-3 pt-4">
-            <UButton color="gray" variant="ghost" @click="isModalOpen = false">Cancelar</UButton>
-            <UButton type="submit" color="primary" :loading="saving">Salvar</UButton>
+            <UButton
+              color="gray"
+              variant="ghost"
+              @click="isModalOpen = false"
+            >
+              Cancelar
+            </UButton>
+            <UButton
+              type="submit"
+              color="primary"
+              :loading="saving"
+            >
+              Salvar
+            </UButton>
           </div>
         </form>
       </UCard>

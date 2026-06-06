@@ -1,6 +1,12 @@
 <template>
-  <form @submit.prevent="handleSubmit" class="space-y-4">
-    <UFormGroup label="Email" required>
+  <form
+    class="space-y-4"
+    @submit.prevent="handleSubmit"
+  >
+    <UFormGroup
+      label="Email"
+      required
+    >
       <UInput
         v-model="email"
         type="email"
@@ -9,7 +15,10 @@
       />
     </UFormGroup>
 
-    <UFormGroup label="Senha" required>
+    <UFormGroup
+      label="Senha"
+      required
+    >
       <UInput
         v-model="password"
         type="password"
@@ -25,7 +34,14 @@
       {{ error }}
     </div>
 
-    <UButton type="submit" block color="primary" :loading="loading" size="lg" class="mt-4">
+    <UButton
+      type="submit"
+      block
+      color="primary"
+      :loading="loading"
+      size="lg"
+      class="mt-4"
+    >
       Entrar na Plataforma
     </UButton>
 

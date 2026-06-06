@@ -2,19 +2,32 @@
   <div class="p-6 space-y-6">
     <div class="flex justify-between items-center">
       <div>
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Canais de WhatsApp</h1>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">
+          Canais de WhatsApp
+        </h1>
         <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Conecte e gerencie seus números de WhatsApp via Evolution API.
         </p>
       </div>
-      <UButton icon="i-heroicons-plus" color="primary" @click="openAddModal">
+      <UButton
+        icon="i-heroicons-plus"
+        color="primary"
+        @click="openAddModal"
+      >
         Conectar Canal
       </UButton>
     </div>
 
     <!-- Loading -->
-    <div v-if="pending" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <USkeleton v-for="i in 3" :key="i" class="h-28 w-full" />
+    <div
+      v-if="pending"
+      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+    >
+      <USkeleton
+        v-for="i in 3"
+        :key="i"
+        class="h-28 w-full"
+      />
     </div>
 
     <!-- Empty State -->
@@ -22,21 +35,35 @@
       v-else-if="!channels?.length"
       class="text-center py-24 px-6 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl"
     >
-      <UIcon name="i-heroicons-device-phone-mobile" class="mx-auto h-12 w-12 text-slate-400" />
+      <UIcon
+        name="i-heroicons-device-phone-mobile"
+        class="mx-auto h-12 w-12 text-slate-400"
+      />
       <h3 class="mt-3 text-sm font-semibold text-slate-900 dark:text-white">
         Nenhum canal conectado
       </h3>
       <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
         Conecte um número de WhatsApp para começar a receber mensagens.
       </p>
-      <UButton icon="i-heroicons-plus" class="mt-6" @click="openAddModal">
+      <UButton
+        icon="i-heroicons-plus"
+        class="mt-6"
+        @click="openAddModal"
+      >
         Conectar Primeiro Canal
       </UButton>
     </div>
 
     <!-- Channels Grid -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <UCard v-for="channel in channels" :key="channel.id" class="transition-all hover:shadow-md">
+    <div
+      v-else
+      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+    >
+      <UCard
+        v-for="channel in channels"
+        :key="channel.id"
+        class="transition-all hover:shadow-md"
+      >
         <div class="flex items-start justify-between">
           <div class="flex items-center space-x-3">
             <div
@@ -58,7 +85,9 @@
               />
             </div>
             <div>
-              <p class="font-semibold text-slate-900 dark:text-white">{{ channel.name }}</p>
+              <p class="font-semibold text-slate-900 dark:text-white">
+                {{ channel.name }}
+              </p>
               <p class="text-xs text-slate-500 dark:text-slate-400">
                 {{ channel.phone_number || channel.provider_instance_id }}
               </p>
@@ -89,7 +118,9 @@
           v-if="channel.status === 'connected'"
           class="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700"
         >
-          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">URL do Webhook (Evolution API)</p>
+          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+            URL do Webhook (Evolution API)
+          </p>
           <div class="flex items-center gap-2">
             <code class="flex-1 text-[11px] text-slate-600 dark:text-slate-300 truncate font-mono">
               {{ webhookUrl }}
@@ -104,7 +135,11 @@
           </div>
           <p class="text-[10px] text-slate-500 mt-2">
             Configure esta URL no painel ou via Postman na sua
-            <a href="https://evolution-api.com" target="_blank" class="text-primary-500 hover:underline">Evolution API</a>
+            <a
+              href="https://evolution-api.com"
+              target="_blank"
+              class="text-primary-500 hover:underline"
+            >Evolution API</a>
           </p>
         </div>
 
@@ -132,7 +167,10 @@
     </div>
 
     <!-- Modal: Add Channel (Step 1 - Credentials) -->
-    <UModal v-model="isAddModalOpen" :prevent-close="saving">
+    <UModal
+      v-model="isAddModalOpen"
+      :prevent-close="saving"
+    >
       <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
         <template #header>
           <div class="flex items-center justify-between">
@@ -150,17 +188,31 @@
 
         <template #default>
           <div class="space-y-4 py-2">
-            <UFormGroup label="Nome do Canal" required hint="Ex: Vendas, Suporte, SAC">
-              <UInput v-model="form.name" placeholder="Suporte ao Cliente" icon="i-heroicons-tag" />
+            <UFormGroup
+              label="Nome do Canal"
+              required
+              hint="Ex: Vendas, Suporte, SAC"
+            >
+              <UInput
+                v-model="form.name"
+                placeholder="Suporte ao Cliente"
+                icon="i-heroicons-tag"
+              />
             </UFormGroup>
-            <UFormGroup label="Instance Name (Evolution API)" required>
+            <UFormGroup
+              label="Instance Name (Evolution API)"
+              required
+            >
               <UInput
                 v-model="form.instanceId"
                 placeholder="Ex: MinhaInstancia"
                 icon="i-heroicons-key"
               />
             </UFormGroup>
-            <UFormGroup label="API Token (Evolution API)" required>
+            <UFormGroup
+              label="API Token (Evolution API)"
+              required
+            >
               <UInput
                 v-model="form.token"
                 type="password"
@@ -183,7 +235,13 @@
 
         <template #footer>
           <div class="flex justify-end space-x-3">
-            <UButton color="gray" variant="ghost" @click="isAddModalOpen = false">Cancelar</UButton>
+            <UButton
+              color="gray"
+              variant="ghost"
+              @click="isAddModalOpen = false"
+            >
+              Cancelar
+            </UButton>
             <UButton
               color="primary"
               :loading="saving"
@@ -198,11 +256,16 @@
     </UModal>
 
     <!-- Modal: QR Code (Step 2 - Scan) -->
-    <UModal v-model="isQrModalOpen" :prevent-close="pollingActive">
+    <UModal
+      v-model="isQrModalOpen"
+      :prevent-close="pollingActive"
+    >
       <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
         <template #header>
           <div class="flex items-center justify-between">
-            <h3 class="text-base font-semibold text-gray-900 dark:text-white">Escanear QR Code</h3>
+            <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+              Escanear QR Code
+            </h3>
             <UButton
               color="gray"
               variant="ghost"
@@ -220,7 +283,9 @@
                 name="i-heroicons-arrow-path"
                 class="w-10 h-10 text-primary-500 animate-spin"
               />
-              <p class="text-sm text-slate-500">Gerando QR Code...</p>
+              <p class="text-sm text-slate-500">
+                Gerando QR Code...
+              </p>
             </template>
 
             <!-- QR Code image -->
@@ -229,7 +294,7 @@
                 :src="qrCodeData"
                 class="w-56 h-56 rounded-xl border-4 border-white dark:border-slate-700 shadow-lg"
                 alt="QR Code WhatsApp"
-              />
+              >
               <div class="text-center space-y-1 px-4">
                 <p class="font-semibold text-slate-900 dark:text-white">
                   Abra o WhatsApp no seu celular
@@ -250,9 +315,12 @@
 
             <!-- Error / no data -->
             <template v-else>
-              <UIcon name="i-heroicons-x-circle" class="w-10 h-10 text-red-400" />
+              <UIcon
+                name="i-heroicons-x-circle"
+                class="w-10 h-10 text-red-400"
+              />
               <p class="text-sm text-slate-500 text-center">
-                Não foi possível carregar o QR Code.<br />Clique em "Novo QR Code" abaixo.
+                Não foi possível carregar o QR Code.<br>Clique em "Novo QR Code" abaixo.
               </p>
             </template>
           </div>
@@ -270,7 +338,12 @@
             >
               Novo QR Code
             </UButton>
-            <UButton color="gray" @click="closeQrModal">Fechar</UButton>
+            <UButton
+              color="gray"
+              @click="closeQrModal"
+            >
+              Fechar
+            </UButton>
           </div>
         </template>
       </UCard>
