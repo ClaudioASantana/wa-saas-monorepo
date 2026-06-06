@@ -60,6 +60,12 @@ A infraestrutura e o desenvolvimento devem estritamente utilizar as seguintes te
 - Mídias não devem ser salvas ou processadas sincronamente na thread principal para não bloquear o Event Loop.
 - Upload de mídias ocorrerá via background (background threads no Node.js auxiliar), enviando diretamente para o **Cloudflare R2**.
 
+### 4.5. Deploy e Hospedagem de Banco de Dados
+
+- O sistema utiliza **Supabase** nativamente (através do `@nuxtjs/supabase`).
+- Em produção, a arquitetura adotada é **Supabase via Docker (Self-Hosted)** rodando no próprio servidor (VPS ou Dedicado) em vez da versão gerenciada (Cloud). 
+- Isso garante controle total dos dados (privacidade) e reduz os custos de escala a zero para um número crescente de empresas (multi-tenant) e usuários. A API, o GoTrue (Auth), o Realtime e o PostgREST operam de forma nativa e transparente no servidor do cliente.
+
 ---
 
 ## 5. Arquitetura de Rotas e Permissões
