@@ -36,37 +36,28 @@
 </template>
 
 <script setup lang="ts">
-const supabase = useSupabaseClient()
+const { signup, loading } = useAuth()
 const email = ref('')
 const password = ref('')
 const name = ref('')
-const loading = ref(false)
 const error = ref('')
 
 const handleSubmit = async () => {
-  loading.value = true
   error.value = ''
 
-  try {
-    const { error: authError } = await supabase.auth.signUp({
-      email: email.value,
-      password: password.value,
-      options: {
-        data: {
-          full_name: name.value,
-        },
-      },
-    })
+  const { error: authError } = await signup(email.value, password.value, {
+    data: {
+      full_name: name.value,
+    },
+  })
 
-    if (authError) throw authError
-
-    // Em vez de alert(), já redirecionamos e forçamos o refresh
-    // para o Supabase SSR pegar o cookie de sessão imediatamente
-    await navigateTo('/', { external: true })
-  } catch (e: any) {
-    error.value = e.message || 'Erro ao criar conta. Tente novamente mais tarde.'
-  } finally {
-    loading.value = false
+  if (authError) {
+    error.value = authError
+    return
   }
+
+  // Em vez de alert(), já redirecionamos e forçamos o refresh
+  // para o Supabase SSR pegar o cookie de sessão imediatamente
+  await navigateTo('/', { external: true })
 }
 </script>

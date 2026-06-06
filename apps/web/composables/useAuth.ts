@@ -46,9 +46,33 @@ export const useAuth = () => {
     }
   }
 
+  const login = async (email: string, password: string): Promise<{ error: string | null }> => {
+    loading.value = true
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) return { error: error.message }
+      return { error: null }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const signup = async (email: string, password: string, options?: Record<string, unknown>): Promise<{ error: string | null }> => {
+    loading.value = true
+    try {
+      const { error } = await supabase.auth.signUp({ email, password, options })
+      if (error) return { error: error.message }
+      return { error: null }
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     user,
     loading,
+    login,
+    signup,
     logout,
     forgotPassword,
     resetPassword,

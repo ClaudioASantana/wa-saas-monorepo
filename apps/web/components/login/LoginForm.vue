@@ -41,31 +41,23 @@
 </template>
 
 <script setup lang="ts">
-const supabase = useSupabaseClient()
+const { login, loading } = useAuth()
 const email = ref('')
 const password = ref('')
-const loading = ref(false)
 const error = ref('')
 
 const handleSubmit = async () => {
-  loading.value = true
   error.value = ''
 
-  try {
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: email.value,
-      password: password.value,
-    })
+  const { error: authError } = await login(email.value, password.value)
 
-    if (authError) throw authError
-
-    // Nuxt Supabase precisa propagar o cookie de sessão antes do middleware agir.
-    // Usamos um refresh completo ou `navigateTo` com `external: true`
-    await navigateTo('/', { external: true })
-  } catch (e: any) {
-    error.value = e.message || 'Erro ao fazer login. Verifique suas credenciais.'
-  } finally {
-    loading.value = false
+  if (authError) {
+    error.value = authError
+    return
   }
+
+  // Nuxt Supabase precisa propagar o cookie de sessão antes do middleware agir.
+  // Usamos um refresh completo ou `navigateTo` com `external: true`
+  await navigateTo('/', { external: true })
 }
 </script>
