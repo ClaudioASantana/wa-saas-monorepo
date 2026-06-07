@@ -1,6 +1,6 @@
 # EPIC 2: Productivity & Automation
 
-**Status:** In Progress
+**Status:** Done
 **Prioridade:** Alta
 
 ## Visão Geral
@@ -12,6 +12,6 @@ Este épico foca em aumentar a produtividade dos agentes e automatizar tarefas r
 3. **Internal Automation**: Gatilhos básicos baseados em eventos.
 
 ## User Stories
-- [ ] **Story 2.1**: Como um agente, quero usar atalhos (`/`) para enviar mensagens pré-definidas.
-- [ ] **Story 2.2**: Como um gestor, quero criar e gerenciar um repositório de respostas rápidas para minha equipe.
-- [ ] **Story 2.3**: Como um agente, quero adicionar tags às conversas para filtragem posterior.
+- [x] **Story 2.1**: Como um agente, quero usar atalhos (`/`) para enviar mensagens pré-definidas.
+- [x] **Story 2.2**: Como um gestor, quero criar e gerenciar um repositório de respostas rápidas para minha equipe.
+- [x] **Story 2.3**: Como um agente, quero adicionar tags às conversas para filtragem posterior.
