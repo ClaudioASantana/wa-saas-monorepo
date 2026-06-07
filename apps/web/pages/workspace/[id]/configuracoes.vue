@@ -241,6 +241,14 @@
           </UCard>
         </div>
       </template>
+      <!-- Templates Meta Tab -->
+      <template #templates>
+        <div class="pt-4">
+          <UCard>
+            <TemplatesManager :workspace-id="workspaceId" />
+          </UCard>
+        </div>
+      </template>
     </UTabs>
 
     <!-- Delete Confirmation Modal (Workspace) -->
@@ -308,6 +316,7 @@
 import QuickRepliesManager from '~/components/admin/QuickRepliesManager.vue'
 import TagsManager from '~/components/admin/TagsManager.vue'
 import RoutingManager from '~/components/admin/RoutingManager.vue'
+import TemplatesManager from '~/components/admin/TemplatesManager.vue'
 
 definePageMeta({
   layout: 'workspace',
@@ -324,7 +333,8 @@ const tabs = [
   { label: 'Equipe', slot: 'equipe', icon: 'i-heroicons-users' },
   { label: 'Roteamento', slot: 'roteamento', icon: 'i-heroicons-arrows-right-left' },
   { label: 'Respostas Rápidas', slot: 'respostas', icon: 'i-heroicons-chat-bubble-left-right' },
-  { label: 'Etiquetas', slot: 'tags', icon: 'i-heroicons-tag' }
+  { label: 'Etiquetas', slot: 'tags', icon: 'i-heroicons-tag' },
+  { label: 'Templates Meta', slot: 'templates', icon: 'i-heroicons-document-text' }
 ]
 
 // ── Webhook URL ───────────────────────────────────────────────────────────────
