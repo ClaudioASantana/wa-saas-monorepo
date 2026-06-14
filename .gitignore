@@ -1,5 +1,3 @@
-
-
 # Environment & Secrets (AIOS)
 .env
 .env.local
@@ -37,3 +35,7 @@ apps/web/.output/
 # TypeScript build
 apps/api/dist/
 packages/shared/dist/
+
+# AIOX Local (AIOX)
+.aiox-core/local/
+.aiox/install-log.txt

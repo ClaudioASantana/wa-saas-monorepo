@@ -268,6 +268,19 @@ const createWorkspace = async () => {
 
     console.log('Workspace Created:', data)
 
+    // Cria explicitamente o vínculo owner em user_workspaces.
+    // Não dependemos do trigger on_workspace_created, que pode falhar silenciosamente no ambiente local.
+    const { error: linkError } = await (supabase as any).from('user_workspaces').insert({
+      user_id: currentUserId,
+      workspace_id: data.id,
+      role: 'owner',
+    })
+
+    if (linkError) {
+      console.error('Supabase Link Error:', linkError)
+      throw linkError
+    }
+
     // Limpar modal e atualizar lista
     isModalOpen.value = false
     newWorkspaceName.value = ''

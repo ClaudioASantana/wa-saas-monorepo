@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git ls-remote:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebSearch",
+      "Bash(claude --version)",
+      "Bash(docker compose:*)",
+      "Bash(docker ps:*)",
+      "Bash(tail -f:*)",
+      "Bash(PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -c \"\n-- Check workspaces table\nSELECT id, name, owner_id, created_at FROM workspaces ORDER BY created_at DESC LIMIT 5;\n\")",
+      "Bash(curl -s 'http://127.0.0.1:54321/rest/v1/workspaces?select=*&order=created_at.desc' -H \"apikey: sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz\" -H \"Authorization: Bearer sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz\" -H \"Content-Type: application/json\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl:*)",
+      "Bash(psql:*)",
+      "Read(//home/claud/.nvm/versions/node/v24.16.0/bin/**)",
+      "Bash(npx supabase:*)",
+      "Bash(/home/claud/repos/wa-saas-monorepo/supabase/migrations/20260614000000_add_conversation_contact_unique_constraints.sql:*)",
+      "Bash(node:*)",
+      "Bash(/home/claud/.openclaude/projects/-home-claud-repos-wa-saas-monorepo/memory/team/p0-bugs-status.md:*)",
+      "Bash(python3 -c \"import sys,json; print\\(json.loads\\(sys.stdin.read\\(\\)\\)[''''lastPrompt'''']\\)\")",
+      "Bash(git add:*)"
+    ]
+  }
+}

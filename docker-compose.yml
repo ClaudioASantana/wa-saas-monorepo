@@ -28,7 +28,7 @@ services:
       - PORT=4000
       - REDIS_URL=redis://redis:6379/1
       - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - AWS_ENDPOINT=${AWS_ENDPOINT}
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
@@ -52,7 +52,7 @@ services:
       - PORT=3001
       - REDIS_URL=redis://redis:6379/1
       - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
     volumes:
       - ./apps/whatsapp-engine/src:/app/src
     depends_on:
@@ -80,13 +80,42 @@ services:
       - NODE_ENV=production
       - PORT=3001
 
-  cloudflare-tunnel:
+  supabase-backup:
+    image: prodrigestivill/postgres-backup-local:17
+    container_name: wa-supabase-backup
+    restart: unless-stopped
+    environment:
+      - POSTGRES_HOST=host.docker.internal
+      - POSTGRES_PORT=54322
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_EXTRA_OPTS=-Z6 --schema=public --blobs
+      - SCHEDULE=0 3 * * *
+      - BACKUP_KEEP_DAYS=7
+      - BACKUP_KEEP_WEEKS=2
+      - BACKUP_KEEP_MONTHS=1
+      - HEALTHCHECK_PORT=8080
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - ./supabase/backups:/backups
+
+  cloudflare-tunnel-api:
     image: cloudflare/cloudflared:latest
-    container_name: wa-cloudflare-tunnel
-    restart: always
-    command: tunnel --url http://api:4000
+    container_name: wa-cloudflare-tunnel-api
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://api:4000
     depends_on:
       - api
+
+  cloudflare-tunnel-web:
+    image: cloudflare/cloudflared:latest
+    container_name: wa-cloudflare-tunnel-web
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://web:3000
+    depends_on:
+      - web
 
 volumes:
   wa_redis_data:

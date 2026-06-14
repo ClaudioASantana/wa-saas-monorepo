@@ -1,4 +1,13 @@
--- Adiciona a coluna avatar_url na tabela profiles
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text,
+  email text,
+  phone text,
+  created_at timestamptz DEFAULT now(),
+  avatar_url text
+);
+
+-- Adiciona a coluna avatar_url na tabela profiles (caso a tabela já existisse)
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
 -- Cria o bucket 'avatars' se não existir

@@ -25,12 +25,7 @@
       >
         Liberar
       </UButton>
-      <UBadge
-        color="primary"
-        variant="subtle"
-        size="xs"
-        class="flex items-center gap-1"
-      >
+      <UBadge color="primary" variant="subtle" size="xs" class="flex items-center gap-1">
         <UIcon name="i-heroicons-user-circle" />
         Minha
       </UBadge>
@@ -39,29 +34,17 @@
     <!-- Assigned to Others: Show Agent Name + Reassign Popover -->
     <template v-else>
       <UPopover :popper="{ placement: 'bottom-end' }">
-        <UButton
-          color="gray"
-          variant="ghost"
-          size="sm"
-          class="flex items-center gap-1"
-        >
-          <UAvatar
-            :alt="conversation.agent?.name || 'Agente'"
-            size="xs"
-            class="mr-1"
-          />
-          <span class="max-w-[100px] truncate text-xs">{{ conversation.agent?.name || 'Agente' }}</span>
-          <UIcon
-            name="i-heroicons-chevron-down"
-            class="w-3 h-3 text-slate-400"
-          />
+        <UButton color="gray" variant="ghost" size="sm" class="flex items-center gap-1">
+          <UAvatar :alt="conversation.agent?.name || 'Agente'" size="xs" class="mr-1" />
+          <span class="max-w-[100px] truncate text-xs">{{
+            conversation.agent?.name || 'Agente'
+          }}</span>
+          <UIcon name="i-heroicons-chevron-down" class="w-3 h-3 text-slate-400" />
         </UButton>
 
         <template #panel>
           <div class="p-2 w-48 space-y-2">
-            <p class="text-[10px] font-bold text-slate-400 uppercase px-1">
-              Atribuir a
-            </p>
+            <p class="text-[10px] font-bold text-slate-400 uppercase px-1">Atribuir a</p>
             <div class="space-y-1 max-h-48 overflow-y-auto">
               <UButton
                 block
@@ -69,16 +52,16 @@
                 variant="ghost"
                 color="primary"
                 class="justify-start"
-                @click="handleAssign(currentAgentId || null)"
+                @click="handleAssign(currentAgentId)"
               >
                 Assumir para mim
               </UButton>
-              
+
               <UDivider class="my-1" />
-              
+
               <!-- Listar agentes da store -->
               <UButton
-                v-for="agent in agentsStore.agents"
+                v-for="agent in otherAgents"
                 :key="agent.id"
                 block
                 size="xs"
@@ -87,16 +70,12 @@
                 class="justify-start flex items-center gap-2"
                 @click="handleAssign(agent.id)"
               >
-                <UAvatar
-                  :alt="agent.name"
-                  :src="agent.avatar_url || ''"
-                  size="3xs"
-                />
+                <UAvatar :alt="agent.name" :src="agent.avatar_url || ''" size="3xs" />
                 <span class="truncate flex-1 text-left text-xs">{{ agent.name }}</span>
               </UButton>
-              
+
               <UDivider class="my-1" />
-              
+
               <UButton
                 block
                 size="xs"
@@ -119,16 +98,24 @@
 import type { Conversation } from '~/types/chat.types'
 import { useAgentsStore } from '~/stores/agents'
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const props = defineProps<{
   conversation: Conversation
   currentAgentId?: string
 }>()
 
-const emit = defineEmits(['assign'])
-const loading = ref(false)
+const emit = defineEmits<{
+  assign: [agentId: string | null]
+}>()
 
+const loading = ref(false)
+const toast = useToast()
 const agentsStore = useAgentsStore()
+
+// Agents list excluding the current agent (shown separately via "Assumir para mim")
+const otherAgents = computed(() => {
+  if (!props.currentAgentId) return agentsStore.agents
+  return agentsStore.agents.filter((a) => a.id !== props.currentAgentId)
+})
 
 onMounted(() => {
   if (props.conversation.workspace_id) {
@@ -136,24 +123,30 @@ onMounted(() => {
   }
 })
 
-watch(() => props.conversation.workspace_id, (newId) => {
-  if (newId) {
-    agentsStore.load(newId)
+watch(
+  () => props.conversation.workspace_id,
+  (newId) => {
+    if (newId) {
+      agentsStore.load(newId)
+    }
   }
-})
+)
 
 const handleAssign = async (agentId: string | null | undefined) => {
   if (agentId === undefined) {
-    useToast().add({
+    toast.add({
       title: 'Ação não permitida',
       description: 'Seu perfil de agente ainda está sendo carregado.',
-      color: 'yellow'
+      color: 'yellow',
     })
     return
   }
   loading.value = true
   try {
-    await emit('assign', agentId)
+    // emit is synchronous; parent handler must manage its own async state.
+    // We keep loading=true for a minimum duration to provide visual feedback.
+    emit('assign', agentId)
+    await new Promise((resolve) => setTimeout(resolve, 300))
   } finally {
     loading.value = false
   }

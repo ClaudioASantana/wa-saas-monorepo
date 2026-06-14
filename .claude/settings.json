@@ -1,5 +1,11 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "model": "auto",
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://localhost:2099",
+    "ANTHROPIC_AUTH_TOKEN": "mnfst_fY7SnPpnYLiuS4IUIs2FVszbr8o_FgdL0i42JyozAgE",
+    "ANTHROPIC_MODEL": "claude-3-5-sonnet-latest"
+  },
   "permissions": {
     "allow": [
       "Bash(npm run *)",
