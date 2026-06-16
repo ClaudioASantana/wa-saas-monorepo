@@ -6,6 +6,7 @@ import { metricsRoute } from './routes/metrics'
 import { setupWebSocketServer } from './realtime/websocket-server'
 import { logger } from './config/logger'
 import requestLoggerPlugin from './middleware/request-logger'
+import { pool } from './config/db'
 
 const app = Fastify({ 
   logger: logger,
@@ -23,6 +24,15 @@ const start = async () => {
     const port = parseInt(process.env.API_PORT ?? '4000', 10)
     
     await app.ready()
+
+    try {
+      await pool.query('SELECT 1')
+      app.log.info('✓ Postgres database connected (flux-crm)')
+    } catch (err) {
+      app.log.error('✗ Postgres database connection failed — aborting startup')
+      throw err
+    }
+
     setupWebSocketServer(app.server)
 
     await app.listen({ port, host: '0.0.0.0' })

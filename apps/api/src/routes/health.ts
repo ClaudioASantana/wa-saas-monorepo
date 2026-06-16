@@ -1,10 +1,11 @@
 import { FastifyInstance } from 'fastify'
 import { utcNow } from '../utils/time'
+import { pool } from '../config/db'
 
 export async function healthRoute(app: FastifyInstance) {
   app.get('/health', async () => {
     let redisOk = false
-    let supabaseOk = false
+    let postgresOk = false
     let s3Ok = false
 
     try {
@@ -15,9 +16,8 @@ export async function healthRoute(app: FastifyInstance) {
     }
 
     try {
-      const { supabase } = await import('../config/supabase')
-      const { data } = await supabase.from('user_workspaces').select('id').limit(1)
-      if (data) supabaseOk = true
+      await pool.query('SELECT 1')
+      postgresOk = true
     } catch (e) {
       // Ignored
     }
@@ -31,7 +31,7 @@ export async function healthRoute(app: FastifyInstance) {
       // Ignored
     }
 
-    const isOk = redisOk && supabaseOk && s3Ok
+    const isOk = redisOk && postgresOk && s3Ok
 
     return {
       status: isOk ? 'ok' : 'degraded',
@@ -39,7 +39,7 @@ export async function healthRoute(app: FastifyInstance) {
       version: process.env.npm_package_version ?? '0.0.1',
       services: {
         redis: redisOk ? 'up' : 'down',
-        supabase: supabaseOk ? 'up' : 'down',
+        postgres: postgresOk ? 'up' : 'down',
         s3: s3Ok ? 'up' : 'down'
       }
     }

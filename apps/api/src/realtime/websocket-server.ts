@@ -1,11 +1,12 @@
 import { Server } from 'socket.io'
-import { supabase } from '../config/supabase'
+import { verifyToken } from '../config/jwt'
+import { pool } from '../config/db'
 
 let io: Server
 
 export function setupWebSocketServer(httpServer: any) {
   io = new Server(httpServer, {
-    cors: { 
+    cors: {
       origin: process.env.FRONTEND_URL || '*',
       methods: ["GET", "POST"]
     },
@@ -19,32 +20,37 @@ export function setupWebSocketServer(httpServer: any) {
       }
 
       // Validar JWT
-      const { data, error } = await supabase.auth.getUser(token)
-      if (error || !data.user) {
-        return next(new Error('Authentication error: Invalid token'))
-      }
-      
-      const agentId = data.user.id
-      const tenantId = socket.handshake.auth.tenantId || socket.handshake.headers['x-tenant-id']
-      
-      if (!tenantId) {
-         return next(new Error('Authentication error: Missing tenantId'))
-      }
+      try {
+        const payload = verifyToken(token)
+        const agentId = payload.sub
 
-      // Verificar se agente pertence ao tenant
-      const { data: access, error: accessError } = await supabase
-        .from('user_workspaces')
-        .select('id')
-        .eq('profile_id', agentId)
-        .eq('workspace_id', tenantId)
-        .maybeSingle()
-        
-      if (accessError || !access) {
-         return next(new Error('Authentication error: Unauthorized tenant access'))
-      }
+        if (!agentId) {
+          return next(new Error('Authentication error: Invalid token payload'))
+        }
 
-      socket.data = { tenantId, agentId }
-      next()
+        const tenantId = socket.handshake.auth.tenantId || socket.handshake.headers['x-tenant-id']
+
+        if (!tenantId) {
+           return next(new Error('Authentication error: Missing tenantId'))
+        }
+
+        // Verificar se agente pertence ao workspace associado ao tenant
+        const result = await pool.query(
+          `SELECT uw.user_id FROM public.user_workspaces uw
+           JOIN public.workspaces w ON uw.workspace_id = w.id
+           WHERE uw.user_id = $1 AND w.tenant_id = $2`,
+          [agentId, tenantId]
+        )
+
+        if (result.rows.length === 0) {
+           return next(new Error('Authentication error: Unauthorized tenant access'))
+        }
+
+        socket.data = { tenantId, agentId }
+        next()
+      } catch (tokenError) {
+        return next(new Error(`Authentication error: ${tokenError instanceof Error ? tokenError.message : 'Invalid token'}`))
+      }
     } catch (err) {
       next(new Error('Authentication error: Server error'))
     }

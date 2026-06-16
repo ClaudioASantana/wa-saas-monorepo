@@ -15,12 +15,13 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1059.0",
     "@fastify/cors": "^9.0.0",
-    "@supabase/supabase-js": "^2.39.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@wa-saas/shared": "*",
     "bullmq": "^5.78.0",
     "fast-json-stable-stringify": "^2.1.0",
     "fastify": "^4.26.0",
     "ioredis": "^5.10.1",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0",
     "pino": "^9.14.0",
     "socket.io": "^4.8.1"

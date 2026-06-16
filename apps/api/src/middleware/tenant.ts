@@ -22,10 +22,26 @@ export async function tenantMiddleware(req: FastifyRequest, reply: FastifyReply)
     return reply.status(400).send({ error: 'x-tenant-id invalido' })
   }
 
-  // Adquire conexao dedicada e inicia transacao com contexto de tenant
+  // Adquire conexao dedicada e valida existencia do tenant
   const client = await pool.connect()
-  await client.query('BEGIN')
-  await client.query('SELECT set_tenant_context($1)', [tenantId])
+
+  try {
+    const tenantResult = await client.query(
+      'SELECT id FROM public.tenants WHERE id = $1',
+      [tenantId]
+    )
+
+    if (tenantResult.rows.length === 0) {
+      client.release()
+      return reply.status(403).send({ error: 'Tenant nao encontrado' })
+    }
+
+    await client.query('BEGIN')
+    await client.query('SELECT set_tenant_context($1)', [tenantId])
+  } catch (error) {
+    client.release()
+    throw error
+  }
 
   req.tenantId = tenantId
   req.db = client
