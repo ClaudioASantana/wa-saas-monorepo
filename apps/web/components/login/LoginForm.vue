@@ -72,8 +72,7 @@ const handleSubmit = async () => {
     return
   }
 
-  // Nuxt Supabase precisa propagar o cookie de sessão antes do middleware agir.
-  // Usamos um refresh completo ou `navigateTo` com `external: true`
-  await navigateTo('/', { external: true })
+  // Recarregar a página para o middleware pegar o token no cookie
+  window.location.href = '/'
 }
 </script>

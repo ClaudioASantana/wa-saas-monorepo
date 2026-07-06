@@ -3,15 +3,8 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: [
     '@nuxt/ui',
-    '@pinia/nuxt',
-    '@nuxtjs/supabase'
+    '@pinia/nuxt'
   ],
-  supabase: {
-    url: process.env.SUPABASE_URL,
-    key: process.env.SUPABASE_KEY,
-    redirect: false, // Redirecionamentos customizados serão feitos via middleware ou rota
-    types: './types/database.types.ts',
-  },
   typescript: {
     strict: true,
     typeCheck: false,
@@ -21,8 +14,6 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     // Private (server-side only) - never exposed to the client
-    supabaseUrl: process.env.SUPABASE_URL || '',
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',
     stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
     stripePriceStarter: process.env.STRIPE_PRICE_STARTER || '',

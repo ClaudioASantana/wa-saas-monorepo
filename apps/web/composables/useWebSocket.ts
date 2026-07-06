@@ -4,15 +4,13 @@ export const useWebSocket = () => {
   const socket = ref<Socket | null>(null)
   const isConnected = ref(false)
   const config = useRuntimeConfig()
-  const user = useSupabaseUser()
-  const client = useSupabaseClient()
+  const { token: authCookie, currentUser } = useAuth()
 
   const connect = async () => {
     if (socket.value?.connected) return
 
-    // Get the current session token from Supabase
-    const { data: { session } } = await client.auth.getSession()
-    const token = session?.access_token
+    // Get the current session token
+    const token = authCookie.value
 
     if (!token) {
       console.warn('[WebSocket] No session token found, skipping connection')
@@ -85,13 +83,13 @@ export const useWebSocket = () => {
 
   // Auto-connect on mount if user exists
   onMounted(() => {
-    if (user.value) {
+    if (currentUser.value) {
       connect()
     }
   })
 
   // Watch user changes to handle login/logout
-  watch(user, (newUser) => {
+  watch(currentUser, (newUser) => {
     if (newUser) {
       connect()
     } else {

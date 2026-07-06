@@ -64,12 +64,12 @@ export const useAuth = () => {
     }
   }
 
-  const register = async (email: string, password: string, name?: string): Promise<{ error: string | null }> => {
+  const register = async (email: string, password: string, name: string, tenantName: string, tenantSlug: string): Promise<{ error: string | null }> => {
     loading.value = true
     try {
       const response = await $fetch<{ token: string; user: any }>(`${API_URL}/auth/register`, {
         method: 'POST',
-        body: { email, password, name }
+        body: { email, password, name, tenantName, tenantSlug }
       })
 
       if (response.token) {

@@ -29,15 +29,10 @@ export const useWorkspaceStore = defineStore('workspace', {
 
       this.loading = true
       try {
-        const supabase = useSupabaseClient()
-        const { data, error } = await supabase
-          .from('workspaces')
-          .select('*')
-          .eq('id', workspaceId)
-          .single()
-
-        if (!error && data) {
-          this.activeWorkspace = data as Workspace
+        const config = useRuntimeConfig()
+        const data = await $fetch<Workspace>(`${config.public.apiUrl}/tenant/${workspaceId}`)
+        if (data) {
+          this.activeWorkspace = data
         }
       } catch (err) {
         console.error('Failed to load workspace:', err)

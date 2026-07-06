@@ -27,8 +27,6 @@ services:
       - NODE_ENV=production
       - PORT=4000
       - REDIS_URL=redis://redis:6379/1
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - AWS_ENDPOINT=${AWS_ENDPOINT}
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
@@ -51,8 +49,6 @@ services:
       - NODE_ENV=development
       - PORT=3001
       - REDIS_URL=redis://redis:6379/1
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
     volumes:
       - ./apps/whatsapp-engine/src:/app/src
     depends_on:
@@ -67,6 +63,19 @@ services:
       - '6379:6379'
     volumes:
       - wa_redis_data:/data
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: wa-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin_password
+      POSTGRES_DB: flux-crm
+    ports:
+      - '5433:5432'
+    volumes:
+      - wa_postgres_data:/var/lib/postgresql/data
 
   marketing:
     build:
@@ -90,3 +99,4 @@ services:
 
 volumes:
   wa_redis_data:
+  wa_postgres_data:

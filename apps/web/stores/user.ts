@@ -26,32 +26,25 @@ export const useUserStore = defineStore('user', {
       if (this.profile) return
 
       // Try custom auth first
-      const { currentUser } = useAuth()
+      const { currentUser, fetchUser } = useAuth()
       if (currentUser.value) {
         this.setUser(currentUser.value)
         return
       }
 
-      // Fallback to Supabase
-      const user = useSupabaseUser()
-      if (!user.value) return
-
-      this.loading = true
-      try {
-        const supabase = useSupabaseClient()
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.value.id)
-          .single()
-
-        if (!error && data) {
-          this.profile = data as UserProfile
+      // Supabase is removed, we only rely on the custom auth now
+      if (!this.profile) {
+        this.loading = true
+        try {
+          await fetchUser()
+          if (currentUser.value) {
+            this.setUser(currentUser.value)
+          }
+        } catch (e) {
+          console.error(e)
+        } finally {
+          this.loading = false
         }
-      } catch (err) {
-        console.error('Failed to load user profile:', err)
-      } finally {
-        this.loading = false
       }
     }
   }

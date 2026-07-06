@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
+import { FastifyInstance } from 'fastify'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { pool } from '../config/db'
@@ -11,17 +11,21 @@ interface LoginBody {
 interface RegisterBody {
   email: string
   password: string
-  name?: string
+  name: string
+  tenantName: string
+  tenantSlug: string
 }
 
 interface TokenPayload {
-  userId: string
+  agentId: string
+  tenantId: string
   email: string
+  role: string
 }
 
 export async function authRoutes(app: FastifyInstance) {
   // POST /auth/login
-  app.post<{ Body: LoginBody }>('/auth/login', async (request: FastifyRequest<{ Body: LoginBody }>, reply: FastifyReply) => {
+  app.post<{ Body: LoginBody }>('/auth/login', async (request, reply) => {
     const { email, password } = request.body || {}
 
     if (!email || !password) {
@@ -30,47 +34,53 @@ export async function authRoutes(app: FastifyInstance) {
 
     try {
       const result = await pool.query(
-        'SELECT id, email, password_hash, name FROM users WHERE email = $1',
+        'SELECT id, tenant_id, email, password_hash, name, role, status FROM agents WHERE email = $1',
         [email.toLowerCase().trim()]
       )
 
       if (result.rows.length === 0) {
-        return reply.status(401).send({ code: 'invalid_credentials', message: 'Invalid login credentials' })
+        return reply.status(401).send({ code: 'invalid_credentials', message: 'Credenciais inválidas' })
       }
 
-      const user = result.rows[0]
-      const validPassword = await bcrypt.compare(password, user.password_hash)
+      const agent = result.rows[0]
+      
+      if (!agent.password_hash) {
+        return reply.status(401).send({ code: 'invalid_credentials', message: 'Senha não configurada' })
+      }
+
+      const validPassword = await bcrypt.compare(password, agent.password_hash)
 
       if (!validPassword) {
-        return reply.status(401).send({ code: 'invalid_credentials', message: 'Invalid login credentials' })
+        return reply.status(401).send({ code: 'invalid_credentials', message: 'Credenciais inválidas' })
       }
 
-      // Get user's workspace info
-      const workspaceResult = await pool.query(`
-        SELECT w.id as workspace_id, w.name as workspace_name, w.tenant_id, t.name as tenant_name, uw.role
-        FROM user_workspaces uw
-        JOIN workspaces w ON w.id = uw.workspace_id
-        JOIN tenants t ON t.id = w.tenant_id
-        WHERE uw.user_id = $1
-        LIMIT 1
-      `, [user.id])
+      if (agent.status !== 'active') {
+        return reply.status(403).send({ code: 'inactive_account', message: 'Conta inativa' })
+      }
 
-      const workspace = workspaceResult.rows[0] || null
+      // Obter informações do tenant
+      const tenantResult = await pool.query(
+        'SELECT id, name, slug, plan, status FROM tenants WHERE id = $1',
+        [agent.tenant_id]
+      )
+      
+      const tenant = tenantResult.rows[0] || null
 
-      // Generate JWT
+      // Gerar JWT
       const token = jwt.sign(
-        { userId: user.id, email: user.email } as TokenPayload,
-        process.env.JWT_SECRET!,
+        { agentId: agent.id, tenantId: agent.tenant_id, email: agent.email, role: agent.role } as TokenPayload,
+        process.env.JWT_SECRET || 'secret',
         { expiresIn: '7d' }
       )
 
       return reply.send({
         token,
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          workspace
+          id: agent.id,
+          email: agent.email,
+          name: agent.name,
+          role: agent.role,
+          tenant
         }
       })
     } catch (error) {
@@ -80,11 +90,11 @@ export async function authRoutes(app: FastifyInstance) {
   })
 
   // POST /auth/register
-  app.post<{ Body: RegisterBody }>('/auth/register', async (request: FastifyRequest<{ Body: RegisterBody }>, reply: FastifyReply) => {
-    const { email, password, name } = request.body || {}
+  app.post<{ Body: RegisterBody }>('/auth/register', async (request, reply) => {
+    const { email, password, name, tenantName, tenantSlug } = request.body || {}
 
-    if (!email || !password) {
-      return reply.status(400).send({ error: 'Email e senha são obrigatórios' })
+    if (!email || !password || !name || !tenantName || !tenantSlug) {
+      return reply.status(400).send({ error: 'Todos os campos são obrigatórios' })
     }
 
     if (password.length < 6) {
@@ -92,46 +102,68 @@ export async function authRoutes(app: FastifyInstance) {
     }
 
     try {
-      // Check if user already exists
-      const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()])
-      if (existing.rows.length > 0) {
+      // Iniciar transação
+      await pool.query('BEGIN')
+
+      // Verificar se email já existe
+      const existingAgent = await pool.query('SELECT id FROM agents WHERE email = $1', [email.toLowerCase().trim()])
+      if (existingAgent.rows.length > 0) {
+        await pool.query('ROLLBACK')
         return reply.status(409).send({ error: 'Email já cadastrado' })
       }
 
-      // Hash password
+      // Verificar se slug de tenant já existe
+      const existingTenant = await pool.query('SELECT id FROM tenants WHERE slug = $1', [tenantSlug.toLowerCase().trim()])
+      if (existingTenant.rows.length > 0) {
+        await pool.query('ROLLBACK')
+        return reply.status(409).send({ error: 'Slug já está em uso' })
+      }
+
+      // 1. Criar tenant
+      const tenantResult = await pool.query(
+        'INSERT INTO tenants (name, slug, plan) VALUES ($1, $2, $3) RETURNING id, name, slug, plan',
+        [tenantName, tenantSlug.toLowerCase().trim(), 'free']
+      )
+      const tenant = tenantResult.rows[0]
+
+      // 2. Hash da senha
       const passwordHash = await bcrypt.hash(password, 10)
 
-      // Create user
-      const result = await pool.query(
-        'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name',
-        [email.toLowerCase().trim(), passwordHash, name || 'User']
+      // 3. Criar agent admin
+      const agentResult = await pool.query(
+        'INSERT INTO agents (tenant_id, email, password_hash, name, role) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, role',
+        [tenant.id, email.toLowerCase().trim(), passwordHash, name, 'admin']
       )
+      const agent = agentResult.rows[0]
 
-      const user = result.rows[0]
+      await pool.query('COMMIT')
 
-      // Generate JWT
+      // Gerar JWT
       const token = jwt.sign(
-        { userId: user.id, email: user.email } as TokenPayload,
-        process.env.JWT_SECRET!,
+        { agentId: agent.id, tenantId: tenant.id, email: agent.email, role: agent.role } as TokenPayload,
+        process.env.JWT_SECRET || 'secret',
         { expiresIn: '7d' }
       )
 
       return reply.status(201).send({
         token,
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name
+          id: agent.id,
+          email: agent.email,
+          name: agent.name,
+          role: agent.role,
+          tenant
         }
       })
     } catch (error) {
+      await pool.query('ROLLBACK')
       app.log.error(error, 'Register error')
       return reply.status(500).send({ error: 'Erro interno do servidor' })
     }
   })
 
-  // GET /auth/me - Get current user info
-  app.get('/auth/me', async (request: FastifyRequest, reply: FastifyReply) => {
+  // GET /auth/me - Obter info do usuário atual
+  app.get('/auth/me', async (request, reply) => {
     const authHeader = request.headers.authorization
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -141,33 +173,35 @@ export async function authRoutes(app: FastifyInstance) {
     const token = authHeader.substring(7)
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as TokenPayload
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as TokenPayload
 
       const result = await pool.query(
-        'SELECT id, email, name FROM users WHERE id = $1',
-        [decoded.userId]
+        'SELECT id, tenant_id, email, name, role, status FROM agents WHERE id = $1',
+        [decoded.agentId]
       )
 
       if (result.rows.length === 0) {
         return reply.status(404).send({ error: 'Usuário não encontrado' })
       }
 
-      const user = result.rows[0]
+      const agent = result.rows[0]
 
-      // Get workspace info
-      const workspaceResult = await pool.query(`
-        SELECT w.id as workspace_id, w.name as workspace_name, w.tenant_id, t.name as tenant_name, uw.role
-        FROM user_workspaces uw
-        JOIN workspaces w ON w.id = uw.workspace_id
-        JOIN tenants t ON t.id = w.tenant_id
-        WHERE uw.user_id = $1
-        LIMIT 1
-      `, [user.id])
+      if (agent.status !== 'active') {
+        return reply.status(403).send({ error: 'Conta inativa' })
+      }
+
+      const tenantResult = await pool.query(
+        'SELECT id, name, slug, plan, status FROM tenants WHERE id = $1',
+        [agent.tenant_id]
+      )
 
       return reply.send({
         user: {
-          ...user,
-          workspace: workspaceResult.rows[0] || null
+          id: agent.id,
+          email: agent.email,
+          name: agent.name,
+          role: agent.role,
+          tenant: tenantResult.rows[0] || null
         }
       })
     } catch (error) {
