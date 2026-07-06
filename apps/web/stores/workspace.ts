@@ -14,6 +14,16 @@ export const useWorkspaceStore = defineStore('workspace', {
     loading: false
   }),
   actions: {
+    setWorkspace(workspace: { workspace_id: string; workspace_name: string; tenant_id: string; tenant_name?: string; role?: string }) {
+      this.activeWorkspace = {
+        id: workspace.workspace_id,
+        name: workspace.workspace_name,
+        tenant_id: workspace.tenant_id,
+        stripe_customer_id: null,
+        plan: 'pro'
+      }
+    },
+
     async load(workspaceId: string) {
       if (this.activeWorkspace?.id === workspaceId) return
 

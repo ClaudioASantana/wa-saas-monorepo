@@ -13,9 +13,26 @@ export const useUserStore = defineStore('user', {
     loading: false
   }),
   actions: {
+    setUser(user: { id: string; email: string; name?: string; avatar_url?: string }) {
+      this.profile = {
+        id: user.id,
+        full_name: user.name || null,
+        avatar_url: user.avatar_url || null,
+        created_at: new Date().toISOString()
+      }
+    },
+
     async init() {
       if (this.profile) return
 
+      // Try custom auth first
+      const { currentUser } = useAuth()
+      if (currentUser.value) {
+        this.setUser(currentUser.value)
+        return
+      }
+
+      // Fallback to Supabase
       const user = useSupabaseUser()
       if (!user.value) return
 

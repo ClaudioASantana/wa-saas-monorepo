@@ -3,6 +3,7 @@ import cors from '@fastify/cors'
 import { healthRoute } from './routes/health'
 import { webhookRoutes } from './routes/webhook'
 import { metricsRoute } from './routes/metrics'
+import { authRoutes } from './routes/auth'
 import { setupWebSocketServer } from './realtime/websocket-server'
 import { logger } from './config/logger'
 import requestLoggerPlugin from './middleware/request-logger'
@@ -18,6 +19,7 @@ app.register(requestLoggerPlugin)
 app.register(healthRoute)
 app.register(webhookRoutes)
 app.register(metricsRoute)
+app.register(authRoutes)
 
 const start = async () => {
   try {

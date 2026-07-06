@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch dev.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
@@ -17,6 +17,7 @@
     "@fastify/cors": "^9.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@wa-saas/shared": "*",
+    "bcrypt": "^6.0.0",
     "bullmq": "^5.78.0",
     "fast-json-stable-stringify": "^2.1.0",
     "fastify": "^4.26.0",
@@ -27,6 +28,7 @@
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/fast-json-stable-stringify": "^2.0.0",
     "@types/node": "^20.11.0",
     "@types/pg": "^8.18.0",
