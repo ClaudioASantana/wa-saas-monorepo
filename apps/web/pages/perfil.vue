@@ -176,15 +176,14 @@
   </div>
 </template>
 
-<script setup lang="ts">
 import { z } from 'zod'
 
 definePageMeta({
   middleware: 'auth'
 })
 
-const supabase = useSupabaseClient()
-const user = useSupabaseUser()
+const { currentUser, fetchUser } = useAuth()
+const config = useRuntimeConfig()
 const toast = useToast()
 const router = useRouter()
 
@@ -195,11 +194,12 @@ const goBack = () => {
 // ----------------------------------------------------------------------------
 // Profile State
 // ----------------------------------------------------------------------------
-const profile = ref<{ id: string; name: string; phone: string | null; avatar_url: string | null } | null>(null)
+const profile = computed(() => currentUser.value)
+
 const profileState = reactive({
-  email: user.value?.email || '',
-  name: '',
-  phone: '',
+  email: currentUser.value?.email || '',
+  name: currentUser.value?.name || '',
+  phone: '', // Phone was in profiles, maybe not in agents yet, we'll keep the field
 })
 
 const profileSchema = z.object({
@@ -210,17 +210,10 @@ const profileSchema = z.object({
 const savingProfile = ref(false)
 
 const loadProfile = async () => {
-  if (!user.value) return
-  const { data, error } = (await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.value.id)
-    .single()) as any
-
-  if (data) {
-    profile.value = data
-    profileState.name = data.name || ''
-    profileState.phone = data.phone || ''
+  if (currentUser.value) {
+    profileState.email = currentUser.value.email || ''
+    profileState.name = currentUser.value.name || ''
+    // If phone is added to agents, fetch it here
   }
 }
 
@@ -229,18 +222,17 @@ onMounted(loadProfile)
 const saveProfile = async () => {
   savingProfile.value = true
   try {
-    await $fetch('/api/profile', {
-      method: 'PATCH',
+    await $fetch(`${config.public.apiUrl}/agents/me`, {
+      method: 'PUT',
       body: {
-        name: profileState.name,
-        phone: profileState.phone,
+        full_name: profileState.name,
       }
     })
     toast.add({ title: 'Perfil atualizado com sucesso!', color: 'green' })
-    clearNuxtData('user-profile') // Force refresh on layout
+    await fetchUser() // Atualiza o state global do auth
     await loadProfile() // Refresh
   } catch (error: any) {
-    toast.add({ title: 'Erro ao atualizar perfil', description: error.statusMessage || error.message, color: 'red' })
+    toast.add({ title: 'Erro ao atualizar perfil', description: error.data?.error || error.message, color: 'red' })
   } finally {
     savingProfile.value = false
   }
@@ -269,21 +261,10 @@ const savingPassword = ref(false)
 const savePassword = async () => {
   savingPassword.value = true
   try {
-    // Para simplificar, estamos apenas enviando a nova senha. 
-    // A API usará updateUser que não exige a senha atual diretamente,
-    // mas em um app crítico faríamos signInWithPassword antes para validar a atual.
-    await $fetch('/api/profile', {
-      method: 'PATCH',
-      body: {
-        password: passwordState.newPassword,
-      }
-    })
-    toast.add({ title: 'Senha alterada com sucesso!', color: 'green' })
-    passwordState.currentPassword = ''
-    passwordState.newPassword = ''
-    passwordState.confirmPassword = ''
+    // API não implementada ainda para alterar senha localmente
+    toast.add({ title: 'Alteração de senha em breve', description: 'Esta funcionalidade será migrada para a nova API.', color: 'yellow' })
   } catch (error: any) {
-    toast.add({ title: 'Erro ao alterar senha', description: error.statusMessage || error.message, color: 'red' })
+    toast.add({ title: 'Erro ao alterar senha', description: error.message, color: 'red' })
   } finally {
     savingPassword.value = false
   }
@@ -295,10 +276,9 @@ const savePassword = async () => {
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
 
+// Placeholder for avatar URL since Supabase Storage is gone
 const avatarUrl = computed(() => {
-  if (!profile.value?.avatar_url) return null
-  const { data } = supabase.storage.from('avatars').getPublicUrl(profile.value.avatar_url)
-  return data.publicUrl
+  return null
 })
 
 const triggerFileInput = () => {
@@ -306,44 +286,6 @@ const triggerFileInput = () => {
 }
 
 const uploadAvatar = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  if (!target.files || target.files.length === 0) return
-
-  const file = target.files[0]
-  if (file.size > 2 * 1024 * 1024) {
-    toast.add({ title: 'Arquivo muito grande', description: 'O tamanho máximo permitido é 2MB.', color: 'red' })
-    return
-  }
-
-  uploading.value = true
-  try {
-    if (!user.value) throw new Error('Usuário não autenticado')
-
-    const fileExt = file.name.split('.').pop()
-    const filePath = `${user.value.id}/avatar.${fileExt}`
-
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, file, { upsert: true })
-
-    if (uploadError) throw uploadError
-
-    // Atualiza o profile com o novo path
-    await $fetch('/api/profile', {
-      method: 'PATCH',
-      body: {
-        avatar_url: filePath,
-      }
-    })
-
-    toast.add({ title: 'Foto atualizada com sucesso!', color: 'green' })
-    clearNuxtData('user-profile') // Force refresh on layout
-    await loadProfile()
-  } catch (error: any) {
-    toast.add({ title: 'Erro ao fazer upload', description: error.message, color: 'red' })
-  } finally {
-    uploading.value = false
-    if (fileInput.value) fileInput.value.value = ''
-  }
+  toast.add({ title: 'Upload em breve', description: 'Upload de avatar será implementado na nova infraestrutura.', color: 'yellow' })
 }
 </script>

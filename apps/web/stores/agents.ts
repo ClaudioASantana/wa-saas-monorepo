@@ -19,25 +19,15 @@ export const useAgentsStore = defineStore('agents', {
 
       this.loading = true
       try {
-        const supabase = useSupabaseClient()
-        const { data, error } = await supabase
-          .from('user_workspaces')
-          .select(`
-            role,
-            profiles:profile_id (
-              id,
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq('workspace_id', workspaceId)
+        const config = useRuntimeConfig()
+        const data = await $fetch<any[]>(`${config.public.apiUrl}/tenant/agents`)
 
-        if (!error && data) {
+        if (data) {
           this.agents = data.map((item: any) => ({
-            id: item.profiles.id,
-            name: item.profiles.full_name || 'Agente',
+            id: item.id,
+            name: item.full_name || item.email || 'Agente',
             role: item.role,
-            avatar_url: item.profiles.avatar_url
+            avatar_url: item.avatar_url
           }))
           this.workspaceIdLoaded = workspaceId
         }

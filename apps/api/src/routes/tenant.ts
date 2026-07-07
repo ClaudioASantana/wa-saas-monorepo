@@ -63,4 +63,23 @@ export async function tenantRoutes(fastify: FastifyInstance) {
       return reply.status(500).send({ error: 'Erro ao buscar agentes' })
     }
   })
+
+  // DELETE /tenant/me
+  // Exclui o tenant atual e todos os dados associados
+  fastify.delete('/tenant/me', { preHandler: [authenticate] }, async (request, reply) => {
+    const { tenantId, role } = request.user!
+
+    if (role !== 'owner') {
+      return reply.status(403).send({ error: 'Apenas o proprietário pode excluir o workspace' })
+    }
+
+    try {
+      // Deleting the tenant will cascade delete all related data (agents, channels, contacts, etc.)
+      await pool.query('DELETE FROM tenants WHERE id = $1', [tenantId])
+      return reply.send({ success: true })
+    } catch (error) {
+      request.log.error(error)
+      return reply.status(500).send({ error: 'Erro ao excluir o workspace' })
+    }
+  })
 }

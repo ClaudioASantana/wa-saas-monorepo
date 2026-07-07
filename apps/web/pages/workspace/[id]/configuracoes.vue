@@ -160,20 +160,20 @@
               >
                 <li
                   v-for="member in members"
-                  :key="member.user_id"
+                  :key="member.id"
                   class="flex items-center justify-between py-3"
                 >
                   <div class="flex items-center space-x-3">
                     <UAvatar
-                      :alt="member.profile?.email ?? 'M'"
+                      :alt="member.email ?? 'M'"
                       size="sm"
                     />
                     <div>
                       <p class="text-sm font-medium text-slate-900 dark:text-white">
-                        {{ member.profile?.name || member.profile?.email }}
+                        {{ member.full_name || member.email }}
                       </p>
                       <p class="text-xs text-slate-500">
-                        {{ member.profile?.email }}
+                        {{ member.email }}
                       </p>
                     </div>
                   </div>
@@ -325,7 +325,7 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
-const supabase = useSupabaseClient()
+const config = useRuntimeConfig()
 const workspaceId = route.params.id as string
 
 const tabs = [
@@ -360,35 +360,36 @@ const saving = ref(false)
 const settings = ref({ name: '' })
 
 const { data: workspaceData } = await useAsyncData(`settings-${workspaceId}`, async () => {
-  const { data } = await supabase.from('workspaces').select('name').eq('id', workspaceId).single()
+  const data = await $fetch<any>(`${config.public.apiUrl}/tenant/me`)
   return data
 })
 
 if (workspaceData.value) {
-  settings.value.name = (workspaceData.value as any).name
+  settings.value.name = workspaceData.value.name
 }
 
 const saveSettings = async () => {
   if (!settings.value.name.trim()) return
   saving.value = true
-  const { error } = await (supabase as any)
-    .from('workspaces')
-    .update({ name: settings.value.name })
-    .eq('id', workspaceId)
-
-  if (error) {
-    useToast().add({ title: 'Erro ao salvar', color: 'red', icon: 'i-heroicons-x-circle' })
-  } else {
+  try {
+    await $fetch(`${config.public.apiUrl}/tenant/me`, {
+      method: 'PUT',
+      body: { name: settings.value.name }
+    })
     useToast().add({ title: 'Salvo com sucesso!', icon: 'i-heroicons-check-circle' })
+  } catch (error) {
+    useToast().add({ title: 'Erro ao salvar', color: 'red', icon: 'i-heroicons-x-circle' })
+  } finally {
+    saving.value = false
   }
-  saving.value = false
 }
 
 // ── Team Members ──────────────────────────────────────────────────────────────
 interface Member {
-  user_id: string
+  id: string
   role: string
-  profile: { email: string | null; name: string | null } | null
+  email: string | null
+  full_name: string | null
 }
 
 const inviteEmail = ref('')
@@ -397,32 +398,23 @@ const inviting = ref(false)
 const {
   data: members,
   pending: membersPending,
-  refresh: refreshMembers,
 } = await useAsyncData<Member[]>(`members-${workspaceId}`, async () => {
-  const { data, error } = await supabase
-    .from('user_workspaces')
-    .select('user_id, role, profile:profiles(email, name)')
-    .eq('workspace_id', workspaceId)
-  if (error) throw error
-  return (data ?? []) as unknown as Member[]
+  const data = await $fetch<Member[]>(`${config.public.apiUrl}/tenant/agents`)
+  return data ?? []
 })
 
 const inviteMember = async () => {
   if (!inviteEmail.value.trim()) return
   inviting.value = true
   try {
-    await $fetch(`/api/workspace/${workspaceId}/invite`, {
-      method: 'POST',
-      body: { email: inviteEmail.value.trim() },
+    // A rota de invite deverá ser implementada no Fastify
+    useToast().add({
+      title: 'Em breve',
+      description: 'Convites via email serão implementados no backend.',
+      icon: 'i-heroicons-envelope',
+      color: 'yellow',
     })
     inviteEmail.value = ''
-    refreshMembers()
-    useToast().add({
-      title: 'Convite enviado!',
-      description: 'O usuário receberá um email para aceitar o convite.',
-      icon: 'i-heroicons-envelope',
-      color: 'green',
-    })
   } catch (e: unknown) {
     const err = e as { statusMessage?: string }
     useToast().add({
@@ -445,8 +437,9 @@ const deleteWorkspace = async () => {
   if (deleteConfirmName.value !== settings.value.name) return
   deleting.value = true
   try {
-    const { error } = await supabase.from('workspaces').delete().eq('id', workspaceId)
-    if (error) throw error
+    await $fetch(`${config.public.apiUrl}/tenant/me`, {
+      method: 'DELETE'
+    })
 
     useToast().add({
       title: 'Workspace excluído',
