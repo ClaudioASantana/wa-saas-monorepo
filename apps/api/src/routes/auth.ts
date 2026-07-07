@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { pool } from '../config/db'
+import { JWT_SECRET } from '../config/jwt'
 
 interface LoginBody {
   email: string
@@ -39,19 +40,25 @@ export async function authRoutes(app: FastifyInstance) {
       )
 
       if (result.rows.length === 0) {
-        return reply.status(401).send({ code: 'invalid_credentials', message: 'Credenciais inválidas' })
+        return reply
+          .status(401)
+          .send({ code: 'invalid_credentials', message: 'Credenciais inválidas' })
       }
 
       const agent = result.rows[0]
-      
+
       if (!agent.password_hash) {
-        return reply.status(401).send({ code: 'invalid_credentials', message: 'Senha não configurada' })
+        return reply
+          .status(401)
+          .send({ code: 'invalid_credentials', message: 'Senha não configurada' })
       }
 
       const validPassword = await bcrypt.compare(password, agent.password_hash)
 
       if (!validPassword) {
-        return reply.status(401).send({ code: 'invalid_credentials', message: 'Credenciais inválidas' })
+        return reply
+          .status(401)
+          .send({ code: 'invalid_credentials', message: 'Credenciais inválidas' })
       }
 
       if (agent.status !== 'active') {
@@ -63,13 +70,18 @@ export async function authRoutes(app: FastifyInstance) {
         'SELECT id, name, slug, plan, status FROM tenants WHERE id = $1',
         [agent.tenant_id]
       )
-      
+
       const tenant = tenantResult.rows[0] || null
 
       // Gerar JWT
       const token = jwt.sign(
-        { agentId: agent.id, tenantId: agent.tenant_id, email: agent.email, role: agent.role } as TokenPayload,
-        process.env.JWT_SECRET || 'secret',
+        {
+          agentId: agent.id,
+          tenantId: agent.tenant_id,
+          email: agent.email,
+          role: agent.role,
+        } as TokenPayload,
+        JWT_SECRET,
         { expiresIn: '7d' }
       )
 
@@ -80,8 +92,8 @@ export async function authRoutes(app: FastifyInstance) {
           email: agent.email,
           name: agent.name,
           role: agent.role,
-          tenant
-        }
+          tenant,
+        },
       })
     } catch (error) {
       app.log.error(error, 'Login error')
@@ -106,14 +118,18 @@ export async function authRoutes(app: FastifyInstance) {
       await pool.query('BEGIN')
 
       // Verificar se email já existe
-      const existingAgent = await pool.query('SELECT id FROM agents WHERE email = $1', [email.toLowerCase().trim()])
+      const existingAgent = await pool.query('SELECT id FROM agents WHERE email = $1', [
+        email.toLowerCase().trim(),
+      ])
       if (existingAgent.rows.length > 0) {
         await pool.query('ROLLBACK')
         return reply.status(409).send({ error: 'Email já cadastrado' })
       }
 
       // Verificar se slug de tenant já existe
-      const existingTenant = await pool.query('SELECT id FROM tenants WHERE slug = $1', [tenantSlug.toLowerCase().trim()])
+      const existingTenant = await pool.query('SELECT id FROM tenants WHERE slug = $1', [
+        tenantSlug.toLowerCase().trim(),
+      ])
       if (existingTenant.rows.length > 0) {
         await pool.query('ROLLBACK')
         return reply.status(409).send({ error: 'Slug já está em uso' })
@@ -140,8 +156,13 @@ export async function authRoutes(app: FastifyInstance) {
 
       // Gerar JWT
       const token = jwt.sign(
-        { agentId: agent.id, tenantId: tenant.id, email: agent.email, role: agent.role } as TokenPayload,
-        process.env.JWT_SECRET || 'secret',
+        {
+          agentId: agent.id,
+          tenantId: tenant.id,
+          email: agent.email,
+          role: agent.role,
+        } as TokenPayload,
+        JWT_SECRET,
         { expiresIn: '7d' }
       )
 
@@ -152,8 +173,8 @@ export async function authRoutes(app: FastifyInstance) {
           email: agent.email,
           name: agent.name,
           role: agent.role,
-          tenant
-        }
+          tenant,
+        },
       })
     } catch (error) {
       await pool.query('ROLLBACK')
@@ -173,7 +194,7 @@ export async function authRoutes(app: FastifyInstance) {
     const token = authHeader.substring(7)
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as TokenPayload
+      const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload
 
       const result = await pool.query(
         'SELECT id, tenant_id, email, name, role, status FROM agents WHERE id = $1',
@@ -201,8 +222,8 @@ export async function authRoutes(app: FastifyInstance) {
           email: agent.email,
           name: agent.name,
           role: agent.role,
-          tenant: tenantResult.rows[0] || null
-        }
+          tenant: tenantResult.rows[0] || null,
+        },
       })
     } catch (error) {
       return reply.status(401).send({ error: 'Token inválido ou expirado' })

@@ -3,8 +3,10 @@ import { verify, JwtPayload } from 'jsonwebtoken'
 const JWT_SECRET = process.env.JWT_SECRET
 
 if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET not defined in environment')
+  throw new Error('FATAL: JWT_SECRET environment variable is required')
 }
+
+export { JWT_SECRET }
 
 export interface TokenPayload extends JwtPayload {
   sub?: string

@@ -1,8 +1,9 @@
 # EPIC-1: Fundação & Módulo de Autenticação
 
-**Status:** Planejamento
+**Status:** Em Andamento
 **Owner:** @architect + @dev
 **Criado:** 2026-06-03
+**Atualizado:** 2026-07-07 (Decisão Arquitetural: JWT Custom)
 **PRD:** [whatsapp-saas-prd.md](../prd/whatsapp-saas-prd.md)
 
 ---
@@ -19,13 +20,16 @@ Implementar o sistema completo de autenticação e gestão de usuários (Login, 
 
 ### In Scope
 
-- Integração nativa com `@nuxtjs/supabase` para Auth.
-- Telas públicas `/login`, `/esqueci-senha`, `/redefinir-senha`.
-- Componentização de formulários (BaseInput, BaseButton).
-- Middlewares de rota (`auth` para proteger rotas privadas, `guest` para impedir logados na tela de login).
-- Composables reutilizáveis (ex: `useAuth()`).
-- Trigger no Supabase para sincronizar `auth.users` com a tabela `profiles`.
-- Carregamento de dados do usuário ativo no Pinia (via Plugin do Nuxt no startup).
+- **Sistema de autenticação custom** com JWT + bcrypt (decisão arquitetural de 2026-07-07)
+- Telas públicas `/login`, `/esqueci-senha`, `/redefinir-senha`
+- Componentização de formulários (BaseInput, BaseButton, LoginForm, RegisterForm)
+- Middlewares de rota (`auth` para proteger rotas privadas, `guest` para impedir logados na tela de login)
+- Composables reutilizáveis (`useAuth()`)
+- **Criação atômica de tenant + agent admin** via transação PostgreSQL
+- Gerenciamento de token via cookie (7 dias de validade)
+- Carregamento de dados do usuário ativo no Pinia
+- **Rate limiting** nos endpoints de autenticação
+- **Validação robusta de senha** (8+ caracteres, maiúsculas, minúsculas, números, especiais)
 
 ### Out of Scope
 
@@ -37,15 +41,18 @@ Implementar o sistema completo de autenticação e gestão de usuários (Login, 
 
 ## Stories
 
-| ID | Título | Pontos | Prioridade | Status |
-|----|--------|--------|------------|--------|
-| [1.1](../stories/1.1.story.md) | Supabase Auth Integration & Composables | 5 | Crítico | Draft |
-| [1.2](../stories/1.2.story.md) | Login & Register UI (Páginas Públicas) | 5 | Crítico | Draft |
-| [1.3](../stories/1.3.story.md) | Recuperação de Senha & Redefinição | 3 | Alto | Draft |
-| [1.4](../stories/1.4.story.md) | Profile Trigger & Pinia State (Nuxt Plugin) | 5 | Crítico | Draft |
-| [1.5](../stories/1.5.story.md) | Route Middlewares (Auth & Guest) | 3 | Crítico | Draft |
+| ID                             | Título                                                | Pontos | Prioridade | Status |
+| ------------------------------ | ----------------------------------------------------- | ------ | ---------- | ------ |
+| [1.1](../stories/1.1.story.md) | JWT Custom Auth & Composables                         | 5      | Crítico    | Done   |
+| [1.2](../stories/1.2.story.md) | Login & Register UI (Páginas Públicas)                | 5      | Crítico    | Done   |
+| [1.3](../stories/1.3.story.md) | Recuperação de Senha & Redefinição                    | 3      | Alto       | To Do  |
+| [1.4](../stories/1.4.story.md) | Multi-tenant Registration & Pinia State               | 5      | Crítico    | Done   |
+| [1.5](../stories/1.5.story.md) | Route Middlewares (Auth & Guest)                      | 3      | Crítico    | Done   |
+| [1.6](../stories/1.6.story.md) | Security Hardening (Rate Limit + Password Validation) | 8      | Crítico    | To Do  |
 
-**Total de Pontos:** 21
+**Total de Pontos:** 29
+**Pontos Completos:** 18 (62%)
+**Pontos Pendentes:** 11 (38%)
 
 ---
 
@@ -63,33 +70,44 @@ Implementar o sistema completo de autenticação e gestão de usuários (Login, 
 
 ## Critérios de Sucesso
 
-- [ ] Usuário consegue criar uma conta com e-mail e senha.
-- [ ] Após registro, a tabela `profiles` é populada automaticamente via Trigger no Postgres.
-- [ ] Usuário consegue fazer login com sucesso.
-- [ ] Usuário logado que acessa `/login` é redirecionado (middleware `guest`).
-- [ ] Usuário não logado que tenta acessar `/` ou `/perfil` é redirecionado para `/login` (middleware `auth`).
-- [ ] Usuário consegue pedir link de recuperação e alterar a senha.
-- [ ] Nome/Email do usuário está carregado na store do Pinia após recarregar a página.
+- [x] Usuário consegue criar uma conta com e-mail e senha
+- [x] Após registro, tenant e agent admin são criados atomicamente via transação PostgreSQL
+- [x] Usuário consegue fazer login com sucesso
+- [x] Token JWT é armazenado em cookie httpOnly com 7 dias de validade
+- [x] Usuário logado que acessa `/login` é redirecionado (middleware `guest`)
+- [x] Usuário não logado que tenta acessar rotas privadas é redirecionado para `/login` (middleware `auth`)
+- [ ] **PENDENTE:** Rate limiting implementado nos endpoints de autenticação
+- [ ] **PENDENTE:** Validação robusta de senha (8+ chars, maiúsc, minúsc, números, especiais)
+- [ ] **PENDENTE:** Usuário consegue pedir link de recuperação e alterar a senha
+- [x] Nome/Email do usuário está carregado na store do Pinia
 
 ---
 
-## Requisitos Técnicos (do PRD)
+## Requisitos Técnicos
 
-| Requisito | Seção PRD | Severidade |
-|-----------|-----------|------------|
-| Uso do Supabase Auth e PostgreSQL | 2 / 6 | OBRIGATÓRIO |
-| Composable `useAuth()` e componentes reutilizáveis | 3 | OBRIGATÓRIO |
-| Performance via Cache (Plugin + Pinia) | 3 | OBRIGATÓRIO |
-| Trigger para popular `profiles` | 6 | OBRIGATÓRIO |
+| Requisito                                          | Status          | Severidade  |
+| -------------------------------------------------- | --------------- | ----------- |
+| Sistema de autenticação JWT custom com PostgreSQL  | ✅ Implementado | OBRIGATÓRIO |
+| Composable `useAuth()` e componentes reutilizáveis | ✅ Implementado | OBRIGATÓRIO |
+| State management via Pinia                         | ✅ Implementado | OBRIGATÓRIO |
+| Multi-tenancy (tenant_id em todas as queries)      | ✅ Implementado | OBRIGATÓRIO |
+| Rate limiting em endpoints de auth                 | ❌ Pendente     | CRÍTICO     |
+| Validação robusta de senha                         | ❌ Pendente     | CRÍTICO     |
+| Recuperação de senha via email                     | ❌ Pendente     | ALTO        |
+| CSRF protection                                    | ❌ Pendente     | ALTO        |
 
 ---
 
 ## Riscos
 
-| Risco | Impacto | Mitigação |
-|-------|---------|-----------|
-| Atraso/Latência na trigger de `profiles` afetando o login imediato | Médio | Criar a trigger com `security definer` e otimizar. Tratar loading state no frontend. |
-| Inconsistência de sessão no SSR do Nuxt 3 com Supabase | Alto | Usar o módulo oficial `@nuxtjs/supabase` que já gerencia cookies de forma consistente entre SSR e Client. |
+| Risco                                     | Impacto | Mitigação                                             | Status      |
+| ----------------------------------------- | ------- | ----------------------------------------------------- | ----------- |
+| Ataques de força bruta sem rate limiting  | ALTO    | Implementar @fastify/rate-limit                       | ⚠️ PENDENTE |
+| Senhas fracas permitidas (apenas 6 chars) | ALTO    | Validação robusta (8+, maiúsc, minúsc, num, especial) | ⚠️ PENDENTE |
+| JWT_SECRET com fallback inseguro          | CRÍTICO | Lançar erro se variável não definida                  | ⚠️ PENDENTE |
+| Falta de CSRF protection                  | MÉDIO   | Implementar @fastify/csrf-protection                  | ⚠️ PENDENTE |
+| Token não validado no middleware frontend | MÉDIO   | Validar expiração do JWT no client                    | ⚠️ PENDENTE |
+| Responsabilidade total por segurança auth | ALTO    | Seguir OWASP guidelines, auditorias regulares         | 🔄 CONTÍNUO |
 
 ---
 
@@ -103,5 +121,26 @@ Implementar o sistema completo de autenticação e gestão de usuários (Login, 
 ## Progresso
 
 ```
-[----------] 0%
+[######----] 62% (18/29 pontos)
 ```
+
+### Implementado ✅
+
+- Sistema de autenticação JWT custom
+- Login e registro com criação multi-tenant
+- Middlewares de proteção de rotas
+- Composable useAuth()
+- Integração com Pinia stores
+- UI com componentes reutilizáveis
+
+### Pendente ⚠️
+
+- Rate limiting (Story 1.6)
+- Validação robusta de senha (Story 1.6)
+- Recuperação de senha (Story 1.3)
+- Proteção CSRF
+- Validação de token no middleware frontend
+
+### Documentação 📝
+
+- ✅ [Relatório de Revisão Completo](../analise/revisao-sistema-autenticacao-2026-07-07.md)

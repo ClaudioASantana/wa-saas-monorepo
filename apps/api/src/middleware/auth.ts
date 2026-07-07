@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
 import jwt from 'jsonwebtoken'
+import { JWT_SECRET } from '../config/jwt'
 
 interface TokenPayload {
   agentId: string
@@ -22,8 +23,8 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     }
 
     const token = authHeader.substring(7)
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as TokenPayload
-    
+    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload
+
     // Anexa os dados do usuário na requisição
     request.user = decoded
   } catch (error) {
