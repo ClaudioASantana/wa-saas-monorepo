@@ -1,5 +1,6 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
 import { healthRoute } from './routes/health'
 import { webhookRoutes } from './routes/webhook'
 import { metricsRoute } from './routes/metrics'
@@ -18,6 +19,18 @@ const app = Fastify({
 
 app.register(cors, { origin: true })
 app.register(requestLoggerPlugin)
+
+// Rate limiting global
+app.register(rateLimit, {
+  global: true,
+  max: 100, // 100 requests
+  timeWindow: '15 minutes',
+  errorResponseBuilder: (request, context) => ({
+    statusCode: 429,
+    error: 'Too Many Requests',
+    message: `Limite de requisições excedido. Tente novamente em ${Math.ceil(context.ttl / 1000)} segundos.`,
+  }),
+})
 app.register(healthRoute)
 app.register(webhookRoutes)
 app.register(metricsRoute)

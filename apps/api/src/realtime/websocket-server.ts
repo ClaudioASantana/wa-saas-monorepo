@@ -1,10 +1,11 @@
 import { Server } from 'socket.io'
+import { Server as HttpServer } from 'http'
 import { verifyToken } from '../config/jwt'
 import { pool } from '../config/db'
 
 let io: Server
 
-export function setupWebSocketServer(httpServer: any) {
+export function setupWebSocketServer(httpServer: HttpServer) {
   io = new Server(httpServer, {
     cors: {
       origin: process.env.FRONTEND_URL || '*',
@@ -57,7 +58,7 @@ export function setupWebSocketServer(httpServer: any) {
   })
 
   io.on('connection', (socket) => {
-    const { tenantId, agentId } = socket.data
+    const { tenantId } = socket.data
 
     socket.join(`tenant:${tenantId}`)
     

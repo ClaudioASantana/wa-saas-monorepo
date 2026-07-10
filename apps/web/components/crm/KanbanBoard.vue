@@ -34,7 +34,7 @@
           class="min-h-[150px] space-y-2"
           ghost-class="opacity-50"
           drag-class="rotate-2 scale-105 transition-transform"
-          @end="onDragEnd($event, stage.id)"
+          @end="onDragEnd($event)"
         >
           <template #item="{ element }">
             <KanbanCard 
@@ -84,9 +84,9 @@ watch(() => props.stages, (newStages) => {
   localStages.value = JSON.parse(JSON.stringify(newStages))
 }, { deep: true, immediate: true })
 
-const onDragEnd = (event: any, fromStageId: string) => {
+const onDragEnd = (event: any) => {
   // Logic to identify moved item and emit event to parent
-  const { to, from, item, newIndex, oldIndex } = event
+  const { item } = event
   
   // Since VueDraggable updates the v-model directly, localStages is updated.
   // We just need to find the card and notify the backend

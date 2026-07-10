@@ -1,12 +1,12 @@
 import { verify, JwtPayload } from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET
+const JWT_SECRET_RAW = process.env.JWT_SECRET
 
-if (!JWT_SECRET) {
+if (!JWT_SECRET_RAW) {
   throw new Error('FATAL: JWT_SECRET environment variable is required')
 }
 
-export { JWT_SECRET }
+export const JWT_SECRET: string = JWT_SECRET_RAW
 
 export interface TokenPayload extends JwtPayload {
   sub?: string

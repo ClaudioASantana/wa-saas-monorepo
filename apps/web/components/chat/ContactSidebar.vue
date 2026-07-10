@@ -80,7 +80,7 @@ const props = defineProps<{
   saving?: boolean
 }>()
 
-const emit = defineEmits(['save-notes'])
+defineEmits(['save-notes'])
 const notes = ref(props.contact?.notes || '')
 
 watch(() => props.contact?.notes, (newNotes) => {

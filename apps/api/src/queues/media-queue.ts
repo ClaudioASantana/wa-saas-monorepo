@@ -54,14 +54,15 @@ export const mediaWorker = new Worker<MediaJobData>('media-uploads', async (job)
 
     console.log(`[MediaWorker] Upload concluído: ${storageUrl}`)
 
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as Error
     // Em caso de falha, registrar no DB e jogar exceção para retry do BullMQ
     await pool.query(
       'UPDATE public.media_files SET status = $1, error = $2, updated_at = NOW() WHERE id = $3',
-      ['failed', err.message, mediaFileId]
+      ['failed', error.message, mediaFileId]
     )
 
-    throw err
+    throw error
   }
 
 }, {

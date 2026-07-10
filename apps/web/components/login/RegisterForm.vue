@@ -1,26 +1,73 @@
 <template>
   <form class="space-y-4" @submit.prevent="handleSubmit">
     <UFormGroup label="Nome Completo" required>
-      <UInput v-model="name" type="text" placeholder="João Silva" icon="i-heroicons-user" />
+      <UInput
+        v-model="name"
+        type="text"
+        placeholder="João Silva"
+        icon="i-heroicons-user"
+        :disabled="loading"
+      />
     </UFormGroup>
 
     <UFormGroup label="Nome da Empresa (Workspace)" required>
-      <UInput v-model="tenantName" type="text" placeholder="Minha Empresa" icon="i-heroicons-building-office" />
+      <UInput
+        v-model="tenantName"
+        type="text"
+        placeholder="Minha Empresa"
+        icon="i-heroicons-building-office"
+        :disabled="loading"
+      />
     </UFormGroup>
 
-    <UFormGroup label="Identificador Único (Slug)" required help="Usado para a URL e identificação do seu workspace. Apenas letras minúsculas sem espaço.">
-      <UInput v-model="tenantSlug" type="text" placeholder="minha-empresa" icon="i-heroicons-link" />
+    <UFormGroup
+      label="Identificador Único (Slug)"
+      required
+      help="Usado para a URL e identificação do seu workspace. Apenas letras minúsculas sem espaço."
+    >
+      <UInput
+        v-model="tenantSlug"
+        type="text"
+        placeholder="minha-empresa"
+        icon="i-heroicons-link"
+        :disabled="loading"
+      />
     </UFormGroup>
 
     <UFormGroup label="Email" required>
-      <UInput v-model="email" type="email" placeholder="seu@email.com" icon="i-heroicons-envelope" />
+      <UInput
+        v-model="email"
+        type="email"
+        placeholder="seu@email.com"
+        icon="i-heroicons-envelope"
+        :disabled="loading"
+      />
     </UFormGroup>
 
-    <UFormGroup label="Senha" required help="Mínimo 6 caracteres para a senha.">
-      <UInput v-model="password" type="password" placeholder="••••••••" icon="i-heroicons-lock-closed" />
+    <UFormGroup label="Senha" required>
+      <UInput
+        v-model="password"
+        type="password"
+        placeholder="••••••••"
+        icon="i-heroicons-lock-closed"
+        :disabled="loading"
+      />
+      <div class="text-xs text-gray-500 mt-1">
+        <p>A senha deve conter:</p>
+        <ul class="list-disc list-inside">
+          <li>Mínimo 8 caracteres</li>
+          <li>Letra maiúscula</li>
+          <li>Letra minúscula</li>
+          <li>Número</li>
+          <li>Caractere especial (!@#$%^&*)</li>
+        </ul>
+      </div>
     </UFormGroup>
 
-    <div v-if="error" class="text-red-500 text-sm font-medium bg-red-50 p-3 rounded-md border border-red-100 dark:bg-red-900/20 dark:border-red-800">
+    <div
+      v-if="error"
+      class="text-red-500 text-sm font-medium bg-red-50 p-3 rounded-md border border-red-100 dark:bg-red-900/20 dark:border-red-800"
+    >
       {{ error }}
     </div>
 
@@ -47,15 +94,20 @@ const handleSubmit = async () => {
     return
   }
 
-  const { error: authError } = await register(email.value, password.value, name.value, tenantName.value, tenantSlug.value)
+  const { error: authError } = await register(
+    email.value,
+    password.value,
+    name.value,
+    tenantName.value,
+    tenantSlug.value
+  )
 
   if (authError) {
     error.value = authError
     return
   }
 
-  // Reload after registration to trigger auth middleware correctly
-  window.location.href = '/'
+  // Redirecionar para home após registro bem-sucedido (mantém SPA)
+  await navigateTo('/', { replace: true })
 }
 </script>
-

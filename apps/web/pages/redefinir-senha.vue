@@ -1,5 +1,7 @@
 <template>
-  <div class="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-950">
+  <div
+    class="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-950"
+  >
     <div class="sm:mx-auto sm:w-full sm:max-w-md">
       <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
         Definir Nova Senha
@@ -11,14 +13,8 @@
 
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
       <UCard>
-        <form
-          class="space-y-4"
-          @submit.prevent="handleSubmit"
-        >
-          <UFormGroup
-            label="Nova Senha"
-            required
-          >
+        <form class="space-y-4" @submit.prevent="handleSubmit">
+          <UFormGroup label="Nova Senha" required>
             <UInput
               v-model="password"
               type="password"
@@ -28,10 +24,7 @@
             />
           </UFormGroup>
 
-          <UFormGroup
-            label="Confirmar Nova Senha"
-            required
-          >
+          <UFormGroup label="Confirmar Nova Senha" required>
             <UInput
               v-model="confirm"
               type="password"
@@ -64,33 +57,55 @@
 </template>
 
 <script setup lang="ts">
-// O link do e-mail do Supabase cria sessão temporária automaticamente,
-// portanto o middleware 'auth' é o correto aqui.
-definePageMeta({ middleware: ['auth'] })
+// Página pública - token vem da query string
+definePageMeta({ middleware: ['guest'] })
 
+const route = useRoute()
 const { resetPassword, loading } = useAuth()
 const password = ref('')
 const confirm = ref('')
 const toast = useToast()
 
+// Obter token da query string
+const token = computed(() => (route.query.token as string) || '')
+
+// Validação
 const validationError = computed(() => {
+  if (!token.value) return 'Token de recuperação não encontrado na URL.'
   if (password.value && password.value.length < 8) return 'A senha deve ter no mínimo 8 caracteres.'
   if (confirm.value && password.value !== confirm.value) return 'As senhas não coincidem.'
   return ''
 })
 
-const canSubmit = computed(() =>
-  password.value.length >= 8 && password.value === confirm.value
+const canSubmit = computed(
+  () => token.value && password.value.length >= 8 && password.value === confirm.value
 )
 
 const handleSubmit = async () => {
   if (!canSubmit.value) return
-  const { error } = await resetPassword(password.value)
+
+  const { error } = await resetPassword(token.value, password.value)
   if (error) {
     toast.add({ title: 'Erro ao redefinir senha', description: error, color: 'red' })
     return
   }
-  toast.add({ title: 'Senha redefinida com sucesso!', icon: 'i-heroicons-check-circle', color: 'green' })
+
+  toast.add({
+    title: 'Senha redefinida com sucesso!',
+    icon: 'i-heroicons-check-circle',
+    color: 'green',
+  })
   await navigateTo('/login')
 }
+
+// Verificar se token existe ao montar componente
+onMounted(() => {
+  if (!token.value) {
+    toast.add({
+      title: 'Link inválido',
+      description: 'Token de recuperação não encontrado. Solicite um novo link.',
+      color: 'red',
+    })
+  }
+})
 </script>

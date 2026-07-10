@@ -3,6 +3,7 @@
  * SEMPRE usar esta funcao em vez de `new Date()` diretamente.
  */
 export function utcNow(): Date {
+  // eslint-disable-next-line no-restricted-syntax
   return new Date(new Date().toISOString())
 }
 

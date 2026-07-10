@@ -1,6 +1,7 @@
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { s3 } from '../config/s3'
 import { Readable } from 'stream'
+import { utcNow } from '../utils/time'
 
 function mimeToExtension(mimeType: string): string {
   const map: Record<string, string> = {
@@ -31,7 +32,7 @@ async function getMetaMediaUrl(mediaId: string): Promise<string> {
     throw new Error(`Failed to fetch media url from Meta: ${res.statusText}`)
   }
   
-  const data = (await res.json()) as any
+  const data = (await res.json()) as { url: string }
   return data.url
 }
 
@@ -56,10 +57,10 @@ export async function uploadMediaToS3(params: {
     throw new Error(`Failed to download media stream: ${response.statusText}`)
   }
   
-  const stream = Readable.fromWeb(response.body as any)
+  const stream = Readable.fromWeb(response.body as unknown as import('stream/web').ReadableStream)
 
   const ext = mimeToExtension(params.mimeType)
-  const now = new Date()
+  const now = utcNow()
   const key = [
     params.tenantId,
     now.getUTCFullYear(),

@@ -1,5 +1,5 @@
-export default defineNuxtRouteMiddleware((to, from) => {
-  const { token, fetchUser } = useAuth()
+export default defineNuxtRouteMiddleware(() => {
+  const { token } = useAuth()
 
   // If no token, redirect to login
   if (!token.value) {

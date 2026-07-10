@@ -7,7 +7,7 @@ const toast = useToast()
 
 const supabase = useSupabaseClient<Database>()
 
-const { data: workspace, pending, refresh } = await useAsyncData(`workspace-${workspaceId}`, async () => {
+const { data: workspace, pending } = await useAsyncData(`workspace-${workspaceId}`, async () => {
   const { data, error } = await supabase
     .from('workspaces')
     .select('*')

@@ -84,7 +84,7 @@ interface ContactRow {
 
 const offset = computed(() => (page.value - 1) * PAGE_SIZE)
 
-const { data: rawData, pending, refresh } = await useAsyncData<{ rows: ContactRaw[]; count: number }>(
+const { data: rawData, pending } = await useAsyncData<{ rows: ContactRaw[]; count: number }>(
   `contacts-${workspaceId}`,
   async () => {
     const { data, error, count } = await supabase

@@ -1,0 +1,59 @@
+# Configuração do Cloudflare Tunnel para wa-saas-monorepo
+# Este arquivo define como o tunnel expõe os serviços locais
+
+# Configurações do tunnel
+tunnel: wa-saas-tunnel
+credentials-file: /etc/cloudflared/credentials.json
+
+# Regras de ingress (ordem importa!)
+ingress:
+  # Landing Page / Site de Marketing
+  - hostname: seudominio.com
+    service: http://marketing:3001
+    originRequest:
+      noTLSVerify: true
+
+  # Subdomínio www redireciona para raiz
+  - hostname: www.seudominio.com
+    service: http://marketing:3001
+    originRequest:
+      noTLSVerify: true
+
+  # API Backend
+  - hostname: api.seudominio.com
+    service: http://api:4000
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+      tlsTimeout: 10s
+
+  # Aplicação Web (Dashboard)
+  - hostname: app.seudominio.com
+    service: http://web:3000
+    originRequest:
+      noTLSVerify: true
+
+  # WhatsApp Engine (se precisar expor para webhooks externos)
+  - hostname: whatsapp.seudominio.com
+    service: http://whatsapp-engine:3001
+    originRequest:
+      noTLSVerify: true
+
+  # Webhook da Stripe (importante para billing)
+  - hostname: webhooks.seudominio.com
+    path: ^/stripe.*
+    service: http://api:4000
+    originRequest:
+      noTLSVerify: true
+
+  # Catch-all: tudo que não matchou vai para 404
+  - service: http_status:404
+
+# Configurações de log
+loglevel: info
+
+# Configurações de retry
+retries: 3
+
+# Configurações de conexão
+grace-period: 30s

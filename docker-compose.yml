@@ -93,10 +93,31 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: wa-cloudflare-tunnel
     restart: always
-    command: tunnel --url http://api:4000
+    command: tunnel run
+    volumes:
+      - ./cloudflare-tunnel.yml:/etc/cloudflared/config.yml:ro
+      - ./cloudflare-credentials.json:/etc/cloudflared/credentials.json:ro
     depends_on:
       - api
+      - web
+      - marketing
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: wa-mailpit
+    restart: always
+    ports:
+      - '1025:1025' # SMTP server
+      - '8025:8025' # Web UI
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - wa_mailpit_data:/data
 
 volumes:
   wa_redis_data:
   wa_postgres_data:
+  wa_mailpit_data:

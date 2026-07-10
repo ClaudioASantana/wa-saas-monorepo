@@ -1,29 +1,22 @@
 <template>
-  <form
-    class="space-y-4"
-    @submit.prevent="handleSubmit"
-  >
-    <UFormGroup
-      label="Email"
-      required
-    >
+  <form class="space-y-4" @submit.prevent="handleSubmit">
+    <UFormGroup label="Email" required>
       <UInput
         v-model="email"
         type="email"
         placeholder="seu@email.com"
         icon="i-heroicons-envelope"
+        :disabled="loading"
       />
     </UFormGroup>
 
-    <UFormGroup
-      label="Senha"
-      required
-    >
+    <UFormGroup label="Senha" required>
       <UInput
         v-model="password"
         type="password"
         placeholder="••••••••"
         icon="i-heroicons-lock-closed"
+        :disabled="loading"
       />
     </UFormGroup>
 
@@ -34,14 +27,7 @@
       {{ error }}
     </div>
 
-    <UButton
-      type="submit"
-      block
-      color="primary"
-      :loading="loading"
-      size="lg"
-      class="mt-4"
-    >
+    <UButton type="submit" block color="primary" :loading="loading" size="lg" class="mt-4">
       Entrar na Plataforma
     </UButton>
 
@@ -72,7 +58,7 @@ const handleSubmit = async () => {
     return
   }
 
-  // Recarregar a página para o middleware pegar o token no cookie
-  window.location.href = '/'
+  // Redirecionar para home usando navigateTo do Nuxt (mantém SPA)
+  await navigateTo('/', { replace: true })
 }
 </script>

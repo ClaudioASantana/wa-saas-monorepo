@@ -1,11 +1,11 @@
-export default defineNuxtPlugin((nuxtApp) => {
+export default defineNuxtPlugin(() => {
   const { token, logout } = useAuth()
 
   const fetchInterceptor = $fetch.create({
-    onRequest({ request, options }) {
+    onRequest({ options }) {
       if (token.value) {
         options.headers = options.headers || {}
-        // @ts-ignore
+        // @ts-expect-error Token might not be strictly typed
         options.headers.Authorization = `Bearer ${token.value}`
       }
     },

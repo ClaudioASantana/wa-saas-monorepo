@@ -11,10 +11,13 @@ export const useAuth = () => {
   const token = useCookie<string>('auth_token', {
     default: () => '',
     maxAge: 60 * 60 * 24 * 7, // 7 days
-    path: '/'
+    path: '/',
   })
 
-  const currentUser = useState<{ id: string; email: string; name: string; workspace?: any } | null>('current_user', () => null)
+  const currentUser = useState<{ id: string; email: string; name: string; workspace?: any } | null>(
+    'current_user',
+    () => null
+  )
 
   const logout = async () => {
     loading.value = true
@@ -37,7 +40,7 @@ export const useAuth = () => {
     try {
       const response = await $fetch<{ token: string; user: any }>(`${API_URL}/auth/login`, {
         method: 'POST',
-        body: { email, password }
+        body: { email, password },
       })
 
       if (response.token) {
@@ -57,6 +60,9 @@ export const useAuth = () => {
       return { error: null }
     } catch (error: any) {
       console.error('Login error:', error)
+      if (error?.status === 429 || error?.statusCode === 429) {
+        return { error: 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.' }
+      }
       const message = error?.data?.message || error?.message || 'Erro ao fazer login'
       return { error: message }
     } finally {
@@ -64,12 +70,18 @@ export const useAuth = () => {
     }
   }
 
-  const register = async (email: string, password: string, name: string, tenantName: string, tenantSlug: string): Promise<{ error: string | null }> => {
+  const register = async (
+    email: string,
+    password: string,
+    name: string,
+    tenantName: string,
+    tenantSlug: string
+  ): Promise<{ error: string | null }> => {
     loading.value = true
     try {
       const response = await $fetch<{ token: string; user: any }>(`${API_URL}/auth/register`, {
         method: 'POST',
-        body: { email, password, name, tenantName, tenantSlug }
+        body: { email, password, name, tenantName, tenantSlug },
       })
 
       if (response.token) {
@@ -80,6 +92,9 @@ export const useAuth = () => {
       return { error: null }
     } catch (error: any) {
       console.error('Register error:', error)
+      if (error?.status === 429 || error?.statusCode === 429) {
+        return { error: 'Muitas tentativas de cadastro. Aguarde alguns minutos e tente novamente.' }
+      }
       const message = error?.data?.message || error?.message || 'Erro ao cadastrar'
       return { error: message }
     } finally {
@@ -93,8 +108,8 @@ export const useAuth = () => {
     try {
       const response = await $fetch<{ user: any }>(`${API_URL}/auth/me`, {
         headers: {
-          Authorization: `Bearer ${token.value}`
-        }
+          Authorization: `Bearer ${token.value}`,
+        },
       })
       currentUser.value = response.user
     } catch (error) {
@@ -103,23 +118,49 @@ export const useAuth = () => {
     }
   }
 
-  // Forgot password - simplified (could be extended)
+  // Forgot password - Request password reset email
   const forgotPassword = async (email: string): Promise<{ error: string | null }> => {
     loading.value = true
     try {
-      // TODO: Implement password reset via email
-      return { error: 'Recuperação de senha ainda não implementada' }
+      await $fetch(`${API_URL}/auth/forgot-password`, {
+        method: 'POST',
+        body: { email },
+      })
+
+      return { error: null }
+    } catch (error: any) {
+      console.error('Forgot password error:', error)
+      if (error?.status === 429 || error?.statusCode === 429) {
+        return { error: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' }
+      }
+      const message =
+        error?.data?.message || error?.message || 'Erro ao solicitar recuperação de senha'
+      return { error: message }
     } finally {
       loading.value = false
     }
   }
 
-  // Reset password
-  const resetPassword = async (newPassword: string): Promise<{ error: string | null }> => {
+  // Reset password - Set new password with token
+  const resetPassword = async (
+    token: string,
+    password: string
+  ): Promise<{ error: string | null }> => {
     loading.value = true
     try {
-      // TODO: Implement password reset
-      return { error: 'Redefinição de senha ainda não implementada' }
+      await $fetch(`${API_URL}/auth/reset-password`, {
+        method: 'POST',
+        body: { token, password },
+      })
+
+      return { error: null }
+    } catch (error: any) {
+      console.error('Reset password error:', error)
+      if (error?.status === 429 || error?.statusCode === 429) {
+        return { error: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' }
+      }
+      const message = error?.data?.error || error?.message || 'Erro ao redefinir senha'
+      return { error: message }
     } finally {
       loading.value = false
     }

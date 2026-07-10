@@ -2,9 +2,13 @@
  * Migration runner — aplica arquivos .sql em ordem via DATABASE_URL
  * Uso: npx tsx src/db/migrate.ts
  */
+import { config } from 'dotenv'
 import { readFileSync, readdirSync } from 'fs'
 import { join } from 'path'
 import { Client } from 'pg'
+
+// Carregar variáveis de ambiente do .env na raiz do monorepo
+config({ path: join(__dirname, '../../../.env') })
 
 const MIGRATIONS_DIR = join(__dirname, 'migrations')
 

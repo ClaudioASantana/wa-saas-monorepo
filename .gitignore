@@ -37,3 +37,10 @@ apps/web/.output/
 # TypeScript build
 apps/api/dist/
 packages/shared/dist/
+
+# Cloudflare Tunnel
+cloudflare-credentials.json
+.cloudflared/
+
+# Supabase Backups
+supabase/backups/

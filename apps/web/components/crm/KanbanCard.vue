@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps({
+defineProps({
   card: {
     type: Object,
     required: true
