@@ -359,6 +359,9 @@ definePageMeta({
 
 const route = useRoute()
 const workspaceId = route.params.id as string
+const { token } = useAuth()
+const config = useRuntimeConfig()
+const API_URL = config.public.apiUrl as string
 
 // ── Webhook URL ──────────────────────────────────────────────────────────────
 const requestUrl = useRequestURL()
@@ -396,13 +399,14 @@ const activeChannelId = ref<string | null>(null)
 
 const form = ref({ name: '', instanceId: '', token: '' })
 
-// ── Load Channels ─────────────────────────────────────────────────────────────
 const {
   data: channels,
   pending,
   refresh,
 } = await useAsyncData<Channel[]>(`channels-${workspaceId}`, () =>
-  $fetch<Channel[]>(`/api/channels?workspace_id=${workspaceId}`)
+  $fetch<Channel[]>(`${API_URL}/channels?workspace_id=${workspaceId}`, {
+    headers: { Authorization: `Bearer ${token.value}` }
+  })
 )
 
 // ── Add Modal ─────────────────────────────────────────────────────────────────
@@ -421,8 +425,9 @@ const saveAndGetQr = async () => {
   formError.value = ''
 
   try {
-    const channel = await $fetch<Channel>('/api/channels', {
+    const channel = await $fetch<Channel>(`${API_URL}/channels`, {
       method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         workspace_id: workspaceId,
         name: form.value.name,
@@ -433,10 +438,11 @@ const saveAndGetQr = async () => {
     isAddModalOpen.value = false
     refresh()
 
-    // Check if already connected — if so, skip QR flow
     try {
       const statusRes = await $fetch<{ status: string; phone: string }>(
-        `/api/channels/${channel.id}/status`
+        `${API_URL}/channels/${channel.id}/status`, {
+          headers: { Authorization: `Bearer ${token.value}` }
+        }
       )
       if (statusRes.status === 'connected') {
         refresh()
@@ -475,7 +481,9 @@ const refreshQr = async () => {
   loadingQr.value = true
   qrCodeData.value = ''
   try {
-    const res = await $fetch<{ qrcode: string }>(`/api/channels/${activeChannelId.value}/qrcode`)
+    const res = await $fetch<{ qrcode: string }>(`${API_URL}/channels/${activeChannelId.value}/qrcode`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
     qrCodeData.value = res.qrcode
   } catch (e) {
     useToast().add({ title: 'Erro ao gerar QR Code', color: 'red', icon: 'i-heroicons-x-circle' })
@@ -492,7 +500,9 @@ const startPolling = () => {
     if (!activeChannelId.value) return
     try {
       const res = await $fetch<{ status: string; phone: string }>(
-        `/api/channels/${activeChannelId.value}/status`
+        `${API_URL}/channels/${activeChannelId.value}/status`, {
+          headers: { Authorization: `Bearer ${token.value}` }
+        }
       )
       if (res.status === 'connected') {
         stopPolling()
@@ -527,13 +537,15 @@ const closeQrModal = () => {
 
 // ── Delete Channel ────────────────────────────────────────────────────────────
 const deleteChannel = async (channelId: string) => {
-  const supabase = useSupabaseClient()
-  const { error } = await supabase.from('channels').delete().eq('id', channelId)
-  if (error) {
-    useToast().add({ title: 'Erro ao remover canal', color: 'red' })
-  } else {
+  try {
+    await $fetch(`${API_URL}/channels/${channelId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
     useToast().add({ title: 'Canal removido', icon: 'i-heroicons-check-circle' })
     refresh()
+  } catch (error) {
+    useToast().add({ title: 'Erro ao remover canal', color: 'red' })
   }
 }
 

@@ -12,6 +12,9 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - HOST=0.0.0.0
+    env_file:
+      - .env
     depends_on:
       - api
 
@@ -22,10 +25,10 @@ services:
     container_name: wa-api
     restart: always
     ports:
-      - '4000:4000'
+      - '4005:4005'
     environment:
       - NODE_ENV=production
-      - PORT=4000
+      - PORT=4005
       - REDIS_URL=redis://redis:6379/1
       - AWS_ENDPOINT=${AWS_ENDPOINT}
       - AWS_REGION=${AWS_REGION}
@@ -33,6 +36,10 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_S3_BUCKET=${AWS_S3_BUCKET}
       - TZ=UTC
+      - DATABASE_URL=postgresql://postgres:admin_password@postgres:5432/flux-crm?schema=public
+      - WHATSAPP_ENGINE_URL=http://whatsapp-engine:3001
+    env_file:
+      - .env
     depends_on:
       redis:
         condition: service_started
@@ -49,6 +56,9 @@ services:
       - NODE_ENV=development
       - PORT=3001
       - REDIS_URL=redis://redis:6379/1
+      - DATABASE_URL=postgresql://postgres:admin_password@postgres:5432/flux-crm?schema=public
+    env_file:
+      - .env
     volumes:
       - ./apps/whatsapp-engine/src:/app/src
     depends_on:
@@ -73,7 +83,7 @@ services:
       POSTGRES_PASSWORD: admin_password
       POSTGRES_DB: flux-crm
     ports:
-      - '5433:5432'
+      - '5449:5432'
     volumes:
       - wa_postgres_data:/var/lib/postgresql/data
 
@@ -88,6 +98,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
+    env_file:
+      - .env
 
   cloudflare-tunnel:
     image: cloudflare/cloudflared:latest

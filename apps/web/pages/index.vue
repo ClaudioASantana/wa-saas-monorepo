@@ -103,5 +103,5 @@ definePageMeta({
   middleware: ['auth'],
 })
 
-const { user, logout, loading } = useAuth()
+const { currentUser: user, logout, loading } = useAuth()
 </script>

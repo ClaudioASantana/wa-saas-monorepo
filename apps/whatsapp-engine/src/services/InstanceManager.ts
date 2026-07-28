@@ -1,14 +1,14 @@
-import { SupabaseClient } from '@supabase/supabase-js';
 import { QueueService } from './QueueService';
+import { Pool } from 'pg';
 import { WhatsAppService } from './WhatsAppService';
 
 export class InstanceManager {
   private instances: Map<string, WhatsAppService> = new Map();
-  private supabase: SupabaseClient;
+  private pool: Pool;
   private queueService: QueueService;
 
-  constructor(supabase: SupabaseClient, queueService: QueueService) {
-    this.supabase = supabase;
+  constructor(pool: Pool, queueService: QueueService) {
+    this.pool = pool;
     this.queueService = queueService;
   }
 
@@ -21,7 +21,7 @@ export class InstanceManager {
       return instance;
     }
 
-    const instance = new WhatsAppService(this.supabase, this.queueService, instanceId);
+    const instance = new WhatsAppService(this.pool, this.queueService, instanceId);
     this.instances.set(instanceId, instance);
     
     // Start connection asynchronously

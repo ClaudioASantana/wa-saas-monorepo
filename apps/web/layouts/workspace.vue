@@ -113,8 +113,9 @@
 const route = useRoute()
 const workspaceId = route.params.id as string
 
-const { user, logout } = useAuth()
-const supabase = useSupabaseClient()
+const { currentUser: user, logout, token } = useAuth()
+const config = useRuntimeConfig()
+const API_URL = config.public.apiUrl as string
 
 const workspaceName = ref('Carregando...')
 const hasConnectedChannel = ref(false)
@@ -122,25 +123,33 @@ const workspaceDetails = ref<any>(null)
 
 // Busca nome do banco para a UI do menu
 useAsyncData(`workspace-name-${workspaceId}`, async () => {
-  const { data } = await supabase.from('workspaces').select('name, subscription_status').eq('id', workspaceId).single() as any
-
-  if (data) {
-    workspaceName.value = data.name
-    workspaceDetails.value = data
+  try {
+    const data = await $fetch<any>(`${API_URL}/workspace/${workspaceId}`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    if (data) {
+      workspaceName.value = data.name
+      workspaceDetails.value = data
+    }
+    return data
+  } catch (error) {
+    console.error('Failed to load workspace:', error)
+    return null
   }
-  return data
 })
 
 // Verifica se há canais conectados
 useAsyncData(`workspace-status-${workspaceId}`, async () => {
-  const { count } = await supabase
-    .from('channels')
-    .select('*', { count: 'exact', head: true })
-    .eq('workspace_id', workspaceId)
-    .eq('status', 'connected')
-
-  hasConnectedChannel.value = (count ?? 0) > 0
-  return count
+  try {
+    const data = await $fetch<{ hasConnectedChannel: boolean }>(`${API_URL}/workspace/${workspaceId}/channels-status`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    hasConnectedChannel.value = data?.hasConnectedChannel || false
+    return data
+  } catch (error) {
+    console.error('Failed to load channels status:', error)
+    return null
+  }
 })
 
 const links = [
@@ -173,17 +182,19 @@ const links = [
 // ----------------------------------------------------------------------------
 const userProfile = ref<{ name?: string, avatar_url?: string | null } | null>(null)
 
-useAsyncData('user-profile', async () => {
-  if (!user.value) return null
-  const { data } = (await supabase.from('profiles').select('name, avatar_url').eq('id', user.value.id).single()) as any
-  userProfile.value = data
-  return data
+// Avatar is now returned with user via useAuth (auth/me) so we can compute it
+watchEffect(() => {
+  if (user.value) {
+    userProfile.value = {
+      name: user.value.name,
+      avatar_url: user.value.avatar_url
+    }
+  }
 })
 
 const avatarPublicUrl = computed(() => {
   if (!userProfile.value?.avatar_url) return null
-  const { data } = supabase.storage.from('avatars').getPublicUrl(userProfile.value.avatar_url)
-  return data.publicUrl
+  return userProfile.value.avatar_url.startsWith('http') ? userProfile.value.avatar_url : `${API_URL}/uploads/${userProfile.value.avatar_url}`
 })
 
 const userMenuItems = [

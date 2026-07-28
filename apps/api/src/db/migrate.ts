@@ -8,7 +8,7 @@ import { join } from 'path'
 import { Client } from 'pg'
 
 // Carregar variáveis de ambiente do .env na raiz do monorepo
-config({ path: join(__dirname, '../../../.env') })
+config({ path: join(__dirname, '../../../../.env') })
 
 const MIGRATIONS_DIR = join(__dirname, 'migrations')
 

@@ -195,7 +195,9 @@ definePageMeta({ layout: 'workspace', middleware: ['auth'] })
 
 const route = useRoute()
 const workspaceId = route.params.id as string
-const supabase = useSupabaseClient()
+const { token } = useAuth()
+const config = useRuntimeConfig()
+const API_URL = config.public.apiUrl as string
 
 interface Metrics {
   openConversations: number
@@ -220,54 +222,22 @@ const {
   pending,
   refresh,
 } = await useAsyncData(`dashboard-${workspaceId}`, async () => {
-  const [openRes, todayMsgRes, contactsRes, resolvedRes, recentRes] = await Promise.all([
-    // Conversas abertas
-    supabase
-      .from('conversations')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-      .eq('status', 'open'),
-
-    // Mensagens de hoje (via conversations para filtrar por workspace)
-    supabase
-      .from('messages')
-      .select('id, conversations!inner(workspace_id)', { count: 'exact', head: true })
-      .eq('conversations.workspace_id', workspaceId)
-      .gte('created_at', todayStart.toISOString()),
-
-    // Total de contatos únicos (via conversas)
-    supabase
-      .from('conversations')
-      .select('contact_id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId),
-
-    // Resolvidas hoje
-    supabase
-      .from('conversations')
-      .select('id', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId)
-      .eq('status', 'resolved')
-      .gte('updated_at', todayStart.toISOString()),
-
-    // 5 conversas recentes
-    supabase
-      .from('conversations')
-      .select('id, status, last_message_at, last_message_preview, contact:contacts(name, phone)')
-      .eq('workspace_id', workspaceId)
-      .order('last_message_at', { ascending: false })
-      .limit(5),
-  ])
-
-  const metrics: Metrics = {
-    openConversations: openRes.count ?? 0,
-    messagesToday: todayMsgRes.count ?? 0,
-    totalContacts: contactsRes.count ?? 0,
-    resolvedToday: resolvedRes.count ?? 0,
-  }
-
-  return {
-    metrics,
-    recentConversations: (recentRes.data ?? []) as unknown as RecentConv[],
+  try {
+    const result = await $fetch<{ metrics: Metrics, recentConversations: RecentConv[] }>(`${API_URL}/workspace/${workspaceId}/dashboard`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    return result
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error)
+    return {
+      metrics: {
+        openConversations: 0,
+        messagesToday: 0,
+        totalContacts: 0,
+        resolvedToday: 0
+      },
+      recentConversations: []
+    }
   }
 })
 

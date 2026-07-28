@@ -116,6 +116,10 @@ const workspaceId = computed(() => route.params.id as string)
 const toast = useToast()
 const saving = ref(false)
 
+const { token } = useAuth()
+const config = useRuntimeConfig()
+const API_URL = config.public.apiUrl as string
+
 // Form state — reinitializes when contact changes
 const form = reactive({
   name: '',
@@ -141,8 +145,9 @@ async function save() {
   if (!props.contact) return
   saving.value = true
   try {
-    const updated = await $fetch<ContactRow>(`/api/workspace/${workspaceId.value}/contacts/${props.contact.id}`, {
+    const updated = await $fetch<ContactRow>(`${API_URL}/contacts/${props.contact.id}`, {
       method: 'PATCH',
+      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         name: form.name || undefined,
         phone: form.phone || undefined,

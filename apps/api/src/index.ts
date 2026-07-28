@@ -7,6 +7,13 @@ import { metricsRoute } from './routes/metrics'
 import { authRoutes } from './routes/auth'
 import { tenantRoutes } from './routes/tenant'
 import { agentsRoutes } from './routes/agents'
+import { workspaceRoutes } from './routes/workspace'
+import { channelsRoutes } from './routes/channels'
+import { contactsRoutes } from './routes/contacts'
+import { crmRoutes } from './routes/crm'
+import { conversationsRoutes } from './routes/conversations'
+import { chatRoutes } from './routes/chat'
+import { quickRepliesRoutes } from './routes/quick-replies'
 import { setupWebSocketServer } from './realtime/websocket-server'
 import { logger } from './config/logger'
 import requestLoggerPlugin from './middleware/request-logger'
@@ -23,8 +30,8 @@ app.register(requestLoggerPlugin)
 // Rate limiting global
 app.register(rateLimit, {
   global: true,
-  max: 100, // 100 requests
-  timeWindow: '15 minutes',
+  max: 2000,
+  timeWindow: '5 minutes',
   errorResponseBuilder: (request, context) => ({
     statusCode: 429,
     error: 'Too Many Requests',
@@ -37,10 +44,17 @@ app.register(metricsRoute)
 app.register(authRoutes)
 app.register(tenantRoutes)
 app.register(agentsRoutes)
+app.register(workspaceRoutes)
+app.register(channelsRoutes)
+app.register(contactsRoutes)
+app.register(crmRoutes)
+app.register(conversationsRoutes)
+app.register(chatRoutes)
+app.register(quickRepliesRoutes)
 
 const start = async () => {
   try {
-    const port = parseInt(process.env.API_PORT ?? '4000', 10)
+    const port = parseInt(process.env.PORT ?? process.env.API_PORT ?? '4000', 10)
     
     await app.ready()
 

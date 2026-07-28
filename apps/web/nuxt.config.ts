@@ -21,8 +21,11 @@ export default defineNuxtConfig({
     // WhatsApp Engine configuration
     whatsappEngineUrl: process.env.WHATSAPP_ENGINE_URL || 'http://localhost:3001',
     public: {
-      apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:4000',
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || '/api',
       appUrl: process.env.NUXT_PUBLIC_APP_URL || 'http://localhost:3000',
     },
+  },
+  routeRules: {
+    '/api/**': { proxy: 'http://api:4005/**' }
   },
 })

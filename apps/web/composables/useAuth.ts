@@ -63,7 +63,7 @@ export const useAuth = () => {
       if (error?.status === 429 || error?.statusCode === 429) {
         return { error: 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.' }
       }
-      const message = error?.data?.message || error?.message || 'Erro ao fazer login'
+      const message = error?.data?.error || error?.data?.message || error?.message || 'Erro ao fazer login'
       return { error: message }
     } finally {
       loading.value = false
@@ -95,7 +95,7 @@ export const useAuth = () => {
       if (error?.status === 429 || error?.statusCode === 429) {
         return { error: 'Muitas tentativas de cadastro. Aguarde alguns minutos e tente novamente.' }
       }
-      const message = error?.data?.message || error?.message || 'Erro ao cadastrar'
+      const message = error?.data?.error || error?.data?.message || error?.message || 'Erro ao cadastrar'
       return { error: message }
     } finally {
       loading.value = false

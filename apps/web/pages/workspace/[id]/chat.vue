@@ -53,9 +53,10 @@ definePageMeta({ layout: 'workspace', middleware: ['auth'] })
 const { on, off, emit } = useWebSocket()
 const route = useRoute()
 const workspaceId = route.params.id as string
-const supabase = useSupabaseClient()
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const supabaseRaw = supabase as any
+
+const { token } = useAuth()
+const config = useRuntimeConfig()
+const API_URL = config.public.apiUrl as string
 
 // ── Presence & Typing State ───────────────────────────────────────────────────
 // Maps conversationId -> Set of agent names or IDs
@@ -74,26 +75,22 @@ const sending = ref(false)
 const resolving = ref(false)
 const savingNotes = ref(false)
 
-const user = useSupabaseUser()
 const currentAgent = ref<Agent | null>(null)
 
 // ── Conversations ─────────────────────────────────────────────────────────────
 // Tags
 const { data: allTags } = await useAsyncData(`workspace-${workspaceId}-tags`, () =>
-  $fetch<Tag[]>(`/api/workspace/${workspaceId}/tags`)
+  $fetch<Tag[]>(`${API_URL}/workspace/${workspaceId}/tags`, {
+    headers: { Authorization: `Bearer ${token.value}` }
+  })
 )
 
 // Conversations
 const { data: conversations, pending, refresh: refreshConv } = await useAsyncData<
 Conversation[]>(`conv-${workspaceId}`, async () => {
-  const { data, error } = await supabase
-    .from('conversations')
-    .select(
-      'id, workspace_id, channel_id, contact_id, agent_id, tenant_id, status, last_message_at, last_message_preview, unread_count, created_at, contact:contacts(id, name, phone, notes), agent:agents(id, name), tags:conversation_tags(tag:tags(id, name, color))'
-    )
-    .eq('workspace_id', workspaceId)
-    .order('last_message_at', { ascending: false })
-  if (error) throw error
+  const data = await $fetch<any[]>(`${API_URL}/chat/conversations`, {
+    headers: { Authorization: `Bearer ${token.value}` }
+  })
   return (data ?? []) as unknown as Conversation[]
 })
 
@@ -133,12 +130,9 @@ const {
   () => `msgs-${convId.value}`,
   async () => {
     if (!convId.value) return [] as Message[]
-    const { data, error } = await supabase
-      .from('messages')
-      .select('id, conversation_id, tenant_id, wa_message_id, direction, type, content, media_url, sender_name, is_internal, created_at')
-      .eq('conversation_id', convId.value)
-      .order('created_at', { ascending: true })
-    if (error) throw error
+    const data = await $fetch<any[]>(`${API_URL}/chat/conversations/${convId.value}/messages`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
     return (data ?? []) as unknown as Message[]
   },
   { watch: [convId] }
@@ -159,7 +153,10 @@ const selectConversation = async (conv: Conversation) => {
   // Mark as read
   if (conv.unread_count > 0) {
     try {
-      await supabaseRaw.from('conversations').update({ unread_count: 0 }).eq('id', conv.id)
+      await $fetch(`${API_URL}/chat/conversations/${conv.id}/read`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token.value}` }
+      })
       refreshConv()
     } catch (err) {
       console.error('[Chat] Error marking as read:', err)
@@ -172,12 +169,11 @@ const saveNotes = async (notes: string) => {
   if (!selectedConv.value?.contact?.id) return
   savingNotes.value = true
   try {
-    const { error } = await supabaseRaw
-      .from('contacts')
-      .update({ notes })
-      .eq('id', selectedConv.value.contact.id)
-    
-    if (error) throw error
+    await $fetch(`${API_URL}/contacts/${selectedConv.value.contact.id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token.value}` },
+      body: { notes }
+    })
     
     // Update local state
     if (selectedConv.value.contact) {
@@ -204,8 +200,10 @@ const sendMessage = async (text: string, isInternal: boolean = false) => {
   if (!selectedConv.value) return
   sending.value = true
   try {
-    await $fetch(`/api/messages`, {
+    // We send message directly to api, bypassing Nuxt
+    await $fetch(`${API_URL}/chat/messages`, {
       method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         conversation_id: selectedConv.value.id,
         message: text,
@@ -230,8 +228,9 @@ const resolveConversation = async (status: ConversationStatus = 'resolved') => {
   if (!selectedConv.value) return
   resolving.value = true
   try {
-    await $fetch(`/api/chat/conversations/${selectedConv.value.id}/status`, {
+    await $fetch(`${API_URL}/chat/conversations/${selectedConv.value.id}/status`, {
       method: 'PATCH',
+      headers: { Authorization: `Bearer ${token.value}` },
       body: { status }
     })
     await refreshConv()
@@ -255,8 +254,9 @@ const resolveConversation = async (status: ConversationStatus = 'resolved') => {
 const assignConversation = async (agentId: string | null) => {
   if (!selectedConv.value) return
   try {
-    await $fetch('/api/chat/assign', {
+    await $fetch(`${API_URL}/chat/assign`, {
       method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` },
       body: { conversationId: selectedConv.value.id, agentId }
     })
     
@@ -374,12 +374,12 @@ onMounted(async () => {
 
   // Fetch current agent record via auto-onboarding API
   try {
-    const agent = await $fetch<Agent>('/api/chat/me', {
-      params: { workspaceId }
+    const agent = await $fetch<Agent>(`${API_URL}/chat/me`, {
+      headers: { Authorization: `Bearer ${token.value}` }
     })
     if (agent) currentAgent.value = agent
   } catch (err) {
-    console.error('[Chat] Error fetching/creating agent:', err)
+    console.error('[Chat] Error fetching agent:', err)
   }
 
   // Pre-select conversation from query param

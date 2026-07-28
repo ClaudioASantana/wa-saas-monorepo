@@ -1,23 +1,24 @@
-import makeWASocket, { DisconnectReason } from '@whiskeysockets/baileys';
+import makeWASocket, { DisconnectReason, fetchLatestBaileysVersion, Browsers } from '@whiskeysockets/baileys';
 import * as qrcode from 'qrcode-terminal';
 import pino from 'pino';
 import { Boom } from '@hapi/boom';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { usePostgresAuthState } from '../auth/usePostgresAuthState';
 import { QueueService } from './QueueService';
-import { useSupabaseAuthState } from '../auth/useSupabaseAuthState';
+import { Pool } from 'pg';
 
 export class WhatsAppService {
   private sock: ReturnType<typeof makeWASocket> | null = null;
   private isConnecting: boolean = false;
+  private pool: Pool;
   private queueService: QueueService;
   private instanceName: string;
-  private supabase: SupabaseClient;
+  private qrTimeout: NodeJS.Timeout | null = null;
 
   public currentQr: string | null = null;
   public connectionStatus: string = 'disconnected';
 
-  constructor(supabase: SupabaseClient, queueService: QueueService, instanceName: string) {
-    this.supabase = supabase;
+  constructor(pool: Pool, queueService: QueueService, instanceName: string) {
+    this.pool = pool;
     this.queueService = queueService;
     this.instanceName = instanceName;
   }
@@ -29,12 +30,19 @@ export class WhatsAppService {
 
     console.log(`Initializing WhatsApp Session for: ${this.instanceName}`);
 
-    const { state, saveCreds } = await useSupabaseAuthState(this.supabase, this.instanceName);
+    const { state, saveCreds } = await usePostgresAuthState(this.pool, this.instanceName);
+
+    const { fetchLatestWaWebVersion } = await import('@whiskeysockets/baileys');
+    const { version } = await fetchLatestWaWebVersion({});
+    console.log('fetchLatestWaWebVersion:', version);
 
     this.sock = makeWASocket({
       auth: state,
       printQRInTerminal: false,
-      version: [2, 3000, 1033846690],
+      version: version,
+      browser: Browsers.macOS('Desktop'),
+      markOnlineOnConnect: false,
+      syncFullHistory: false,
       logger: pino({ level: 'silent' }) as any
     });
 

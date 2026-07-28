@@ -22,24 +22,22 @@ export function setupWebSocketServer(httpServer: HttpServer) {
 
       // Validar JWT
       try {
-        const payload = verifyToken(token)
-        const agentId = payload.sub
+        const payload = verifyToken(token) as any
+        const agentId = payload.agentId
 
         if (!agentId) {
           return next(new Error('Authentication error: Invalid token payload'))
         }
 
-        const tenantId = socket.handshake.auth.tenantId || socket.handshake.headers['x-tenant-id']
+        const tenantId = socket.handshake.auth.tenantId || socket.handshake.headers['x-tenant-id'] || payload.tenantId
 
         if (!tenantId) {
            return next(new Error('Authentication error: Missing tenantId'))
         }
 
-        // Verificar se agente pertence ao workspace associado ao tenant
+        // Verificar se agente pertence ao tenant
         const result = await pool.query(
-          `SELECT uw.user_id FROM public.user_workspaces uw
-           JOIN public.workspaces w ON uw.workspace_id = w.id
-           WHERE uw.user_id = $1 AND w.tenant_id = $2`,
+          `SELECT id FROM agents WHERE id = $1 AND tenant_id = $2`,
           [agentId, tenantId]
         )
 

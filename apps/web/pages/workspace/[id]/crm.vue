@@ -149,16 +149,22 @@ definePageMeta({ layout: 'workspace', middleware: ['auth'] })
 
 const route = useRoute()
 const workspaceId = route.params.id as string
-const supabase = useSupabaseClient()
 const toast = useToast()
 const { on, off } = useWebSocket()
+
+const { token } = useAuth()
+const config = useRuntimeConfig()
+const API_URL = config.public.apiUrl as string
 
 // ── Funnels & Stages ──────────────────────────────────────────────────────────
 const activeFunnelId = ref<string | null>(null)
 const initializing = ref(false)
 
 const { data: funnels, refresh: refreshFunnels } = await useAsyncData(`funnels-${workspaceId}`, async () => {
-  const list = await $fetch<any[]>('/api/crm/funnels', { query: { workspaceId } })
+  const list = await $fetch<any[]>(`${API_URL}/crm/funnels`, { 
+    query: { workspaceId },
+    headers: { Authorization: `Bearer ${token.value}` }
+  })
   if (list && list.length > 0) {
     activeFunnelId.value = list[0].id
   }
@@ -168,11 +174,15 @@ const { data: funnels, refresh: refreshFunnels } = await useAsyncData(`funnels-$
 const initializeFunnel = async () => {
   initializing.value = true
   try {
-    const { data: workspace } = await supabase.from('workspaces').select('tenant_id').eq('id', workspaceId).single()
-    if (workspace) {
-      const newFunnel = await $fetch('/api/crm/funnels', {
+    const workspaceRes = await $fetch<any>(`${API_URL}/workspace/${workspaceId}`, {
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
+    
+    if (workspaceRes) {
+      const newFunnel = await $fetch<any>(`${API_URL}/crm/funnels`, {
         method: 'POST',
-        body: { workspace_id: workspaceId, tenant_id: (workspace as any).tenant_id, name: 'Pipeline Principal' }
+        headers: { Authorization: `Bearer ${token.value}` },
+        body: { workspace_id: workspaceId, tenant_id: workspaceId, name: 'Pipeline Principal' }
       })
       await refreshFunnels()
       activeFunnelId.value = newFunnel.id
@@ -191,7 +201,9 @@ if (!funnels.value || funnels.value.length === 0) {
 
 const { data: stages, pending: pendingStages, refresh: refreshStages } = await useAsyncData(`stages-${activeFunnelId.value}`, async () => {
   if (!activeFunnelId.value) return []
-  const data = await $fetch<any[]>(`/api/crm/funnels/${activeFunnelId.value}/stages`)
+  const data = await $fetch<any[]>(`${API_URL}/crm/funnels/${activeFunnelId.value}/stages`, {
+    headers: { Authorization: `Bearer ${token.value}` }
+  })
   // initialize hasNewMessages to false
   data.forEach(stage => {
     stage.crm_cards?.forEach((card: any) => {
@@ -203,13 +215,10 @@ const { data: stages, pending: pendingStages, refresh: refreshStages } = await u
 
 // ── Conversations ────────────────────────────────────────────────────────────
 const { data: allOpenConvs } = await useAsyncData(`open-convs-${workspaceId}`, async () => {
-  const { data } = await supabase
-    .from('conversations')
-    .select('id, contact:contacts(name, phone), tenant_id')
-    .eq('workspace_id', workspaceId)
-    .eq('status', 'open')
-    .order('last_message_at', { ascending: false })
-    .limit(100)
+  const data = await $fetch<any[]>(`${API_URL}/conversations`, {
+    query: { tenant_id: workspaceId, status: 'open', limit: 100 },
+    headers: { Authorization: `Bearer ${token.value}` }
+  })
   return data || []
 })
 
@@ -231,8 +240,9 @@ const availableConversations = computed(() => {
 // ── Board Actions ────────────────────────────────────────────────────────────
 const handleUpdateCardStage = async ({ cardId, stageId, position }: { cardId: string, stageId: string, position: number }) => {
   try {
-    await $fetch(`/api/crm/cards/${cardId}`, {
+    await $fetch(`${API_URL}/crm/cards/${cardId}`, {
       method: 'PATCH',
+      headers: { Authorization: `Bearer ${token.value}` },
       body: { stage_id: stageId, position }
     })
     // Background refresh
@@ -245,7 +255,10 @@ const handleUpdateCardStage = async ({ cardId, stageId, position }: { cardId: st
 
 const handleRemoveCard = async (cardId: string) => {
   try {
-    await $fetch(`/api/crm/cards/${cardId}`, { method: 'DELETE' })
+    await $fetch(`${API_URL}/crm/cards/${cardId}`, { 
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token.value}` }
+    })
     toast.add({ title: 'Removido do CRM', icon: 'i-heroicons-check-circle', color: 'gray' })
     await refreshStages()
   } catch (e: any) {
@@ -273,8 +286,9 @@ const promoteConversation = async () => {
   if (!promoteTarget.value || !promoteStage.value) return
   promoting.value = true
   try {
-    await $fetch('/api/crm/cards', {
+    await $fetch(`${API_URL}/crm/cards`, {
       method: 'POST',
+      headers: { Authorization: `Bearer ${token.value}` },
       body: {
         stage_id: promoteStage.value,
         conversation_id: promoteTarget.value.id,

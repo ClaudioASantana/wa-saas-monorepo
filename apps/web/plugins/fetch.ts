@@ -4,9 +4,9 @@ export default defineNuxtPlugin(() => {
   const fetchInterceptor = $fetch.create({
     onRequest({ options }) {
       if (token.value) {
-        options.headers = options.headers || {}
-        // @ts-expect-error Token might not be strictly typed
-        options.headers.Authorization = `Bearer ${token.value}`
+        const headers = new Headers(options.headers)
+        headers.set('Authorization', `Bearer ${token.value}`)
+        options.headers = headers
       }
     },
     onResponseError({ response }) {

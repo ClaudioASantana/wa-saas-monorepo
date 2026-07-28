@@ -1,22 +1,22 @@
 import 'dotenv/config';
-import { createClient } from '@supabase/supabase-js';
+import { Pool } from 'pg';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { InstanceManager } from './services/InstanceManager';
 import { QueueService } from './services/QueueService';
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const dbUrl = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5449/flux-crm';
+
+const pool = new Pool({
+  connectionString: dbUrl,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
+
 const port = parseInt(process.env.PORT || '3001', 10);
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env');
-  process.exit(1);
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 const queueService = new QueueService();
-const instanceManager = new InstanceManager(supabase, queueService);
+const instanceManager = new InstanceManager(pool, queueService);
 
 const server = Fastify({ logger: true });
 

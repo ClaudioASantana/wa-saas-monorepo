@@ -5,16 +5,10 @@ const route = useRoute()
 const workspaceId = route.params.id as string
 const toast = useToast()
 
-const supabase = useSupabaseClient<Database>()
+const config = useRuntimeConfig()
 
 const { data: workspace, pending } = await useAsyncData(`workspace-${workspaceId}`, async () => {
-  const { data, error } = await supabase
-    .from('workspaces')
-    .select('*')
-    .eq('id', workspaceId)
-    .single()
-  
-  if (error) throw error
+  const data = await $fetch<any>(`${config.public.apiUrl}/tenant/${workspaceId}`)
   return data
 })
 
