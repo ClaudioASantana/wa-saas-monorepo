@@ -147,6 +147,44 @@ export async function workspaceRoutes(fastify: FastifyInstance) {
     }
   })
 
+  // GET /workspace/:id/routing
+  fastify.get('/workspace/:id/routing', { preHandler: [authenticate] }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { tenantId } = request.user!
+
+    if (id !== tenantId) {
+      return reply.status(403).send({ error: 'Acesso negado' })
+    }
+
+    try {
+      const { routingService } = await import('../services/routing.service')
+      const config = await routingService.getConfig(tenantId)
+      return reply.send(config)
+    } catch (error) {
+      request.log.error(error)
+      return reply.status(500).send({ error: 'Erro ao buscar configs de roteamento' })
+    }
+  })
+
+  // PATCH /workspace/:id/routing
+  fastify.patch('/workspace/:id/routing', { preHandler: [authenticate] }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { tenantId, role } = request.user!
+
+    if (id !== tenantId || role === 'agent') {
+      return reply.status(403).send({ error: 'Acesso negado' })
+    }
+
+    try {
+      const { routingService } = await import('../services/routing.service')
+      const config = await routingService.updateConfig(tenantId, request.body as any)
+      return reply.send(config)
+    } catch (error) {
+      request.log.error(error)
+      return reply.status(500).send({ error: 'Erro ao atualizar configs de roteamento' })
+    }
+  })
+
   // POST /workspace/:id/tags
   fastify.post('/workspace/:id/tags', { preHandler: [authenticate] }, async (request, reply) => {
     const { id } = request.params as { id: string }

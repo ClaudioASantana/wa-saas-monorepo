@@ -1,13 +1,15 @@
 import { Queue, Worker } from 'bullmq'
 import { redis } from '../config/redis'
 
-export const webhookQueue = new Queue('webhooks', { connection: redis })
+import { webhookService } from '../services/webhook.service'
 
-export const webhookWorker = new Worker('webhooks', async (job) => {
+export const webhookQueue = new Queue('webhook-processing', { connection: redis })
+
+export const webhookWorker = new Worker('webhook-processing', async (job) => {
   console.log(`[Worker] Processando webhook job ${job.id}`)
   
-  // TODO: Implementar processamento do webhook
-  // await processWebhookPayload(job.data)
+  // Call the webhook service
+  await webhookService.processEvent(job.data.payload)
   
   console.log(`[Worker] Webhook job ${job.id} processado com sucesso.`)
 }, {

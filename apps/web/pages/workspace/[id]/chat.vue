@@ -8,7 +8,7 @@
       :conversations="filteredConversations"
       :selected-id="selectedConvId || undefined"
       :pending="pending"
-      :current-agent-id="user?.id"
+      :current-agent-id="currentAgent?.id"
       :typing-agents="typingAgents"
       :all-tags="allTags || []"
       @select="selectConversation"
@@ -364,10 +364,32 @@ const handleAgentTyping = (payload: AgentTypingEvent) => {
   }
 }
 
+const handleConversationUpdated = (data: { id: string; unread_count?: number; last_message?: string; agent_id?: string }) => {
+  const conv = conversations.value?.find(c => c.id === data.id)
+  if (conv) {
+    if (data.unread_count !== undefined) conv.unread_count = data.unread_count
+    if (data.last_message !== undefined) conv.last_message_preview = data.last_message
+    if (data.agent_id !== undefined) conv.agent_id = data.agent_id
+    
+    // Move para o topo da lista
+    if (conversations.value) {
+      const idx = conversations.value.findIndex(c => c.id === data.id)
+      if (idx > 0) {
+        conversations.value.splice(idx, 1)
+        conversations.value.unshift(conv)
+      }
+    }
+  } else {
+    // É uma conversa nova, o ideal seria dar refresh, mas podemos só chamar refreshConv()
+    refreshConv()
+  }
+}
+
 onMounted(async () => {
   on('message:new', handleIncomingMessage)
   on('message:update', handleMessageUpdate)
   on('conversation:status_changed', handleStatusChanged)
+  on('conversation:updated', handleConversationUpdated)
   on('agent:joined', handleAgentJoined)
   on('agent:left', handleAgentLeft)
   on('agent:typing', handleAgentTyping)

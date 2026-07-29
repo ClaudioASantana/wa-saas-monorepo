@@ -154,19 +154,15 @@ export async function chatRoutes(fastify: FastifyInstance) {
   // POST /chat/assign
   fastify.post('/chat/assign', { preHandler: [authenticate] }, async (request, reply) => {
     const { conversationId, agentId } = request.body as { conversationId: string, agentId: string | null }
-    const { tenantId } = request.user!
+    const { tenantId, agentId: assignerId } = request.user!
 
     try {
-      // Assign or Unassign
-      const result = await pool.query(
-        'UPDATE conversations SET agent_id = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3 RETURNING id',
-        [agentId, conversationId, tenantId]
-      )
-      if (result.rowCount === 0) return reply.status(404).send({ error: 'Conversa não encontrada' })
+      const { chatService } = await import('../services/chat.service')
+      await chatService.assignConversation(tenantId, conversationId, agentId, assignerId)
       return reply.send({ success: true })
-    } catch (error) {
+    } catch (error: any) {
       request.log.error(error)
-      return reply.status(500).send({ error: 'Erro ao atribuir agente' })
+      return reply.status(error.message === 'Conversa não encontrada' ? 404 : 500).send({ error: error.message || 'Erro ao atribuir agente' })
     }
   })
 
@@ -183,19 +179,26 @@ export async function chatRoutes(fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'Conversa não encontrada' })
       }
 
-      // 2. Delete existing tags
+      // 2. Insert new tags
+      await pool.query('BEGIN')
+      
+      // Delete old ones
       await pool.query('DELETE FROM conversation_tags WHERE conversation_id = $1', [id])
-
-      // 3. Insert new tags
+      
+      // Insert new ones
       if (tagIds && tagIds.length > 0) {
-        // Build values for batch insert
         const values = tagIds.map((_, i) => `($1, $${i + 2})`).join(', ')
-        const params = [id, ...tagIds]
-        await pool.query(`INSERT INTO conversation_tags (conversation_id, tag_id) VALUES ${values}`, params)
+        await pool.query(
+          `INSERT INTO conversation_tags (conversation_id, tag_id) VALUES ${values}`,
+          [id, ...tagIds]
+        )
       }
 
+      await pool.query('COMMIT')
+      
       return reply.send({ success: true })
     } catch (error) {
+      await pool.query('ROLLBACK')
       request.log.error(error)
       return reply.status(500).send({ error: 'Erro ao atualizar tags da conversa' })
     }
@@ -207,37 +210,19 @@ export async function chatRoutes(fastify: FastifyInstance) {
     const { tenantId, agentId } = request.user!
 
     try {
-      // Validate conversation belongs to tenant
-      const convCheck = await pool.query('SELECT id, contact_id FROM conversations WHERE id = $1 AND tenant_id = $2', [conversation_id, tenantId])
-      if (convCheck.rows.length === 0) {
-        return reply.status(404).send({ error: 'Conversa não encontrada' })
-      }
-
-      // Get agent name
-      const agentRes = await pool.query('SELECT name FROM agents WHERE id = $1', [agentId])
-      const senderName = agentRes.rows[0]?.name || 'Agent'
-
-      // Insert message
-      const msgResult = await pool.query(
-        `INSERT INTO messages (conversation_id, tenant_id, direction, type, content, sender_name, is_internal)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [conversation_id, tenantId, 'outbound', 'text', message, senderName, !!is_internal]
-      )
-
-      const newMessage = msgResult.rows[0]
-
-      // Update conversation last_message
-      await pool.query(
-        `UPDATE conversations 
-         SET last_message_preview = $1, last_message_at = NOW(), updated_at = NOW() 
-         WHERE id = $2`,
-        [message, conversation_id]
+      const { chatService } = await import('../services/chat.service')
+      const newMessage = await chatService.insertMessage(
+        tenantId,
+        conversation_id,
+        agentId,
+        message,
+        !!is_internal
       )
 
       return reply.send(newMessage)
-    } catch (error) {
+    } catch (error: any) {
       request.log.error(error)
-      return reply.status(500).send({ error: 'Erro ao enviar mensagem' })
+      return reply.status(error.message === 'Conversa não encontrada' ? 404 : 500).send({ error: error.message || 'Erro ao enviar mensagem' })
     }
   })
 }

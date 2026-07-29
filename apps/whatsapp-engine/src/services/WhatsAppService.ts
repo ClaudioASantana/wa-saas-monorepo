@@ -40,7 +40,7 @@ export class WhatsAppService {
       auth: state,
       printQRInTerminal: false,
       version: version,
-      browser: Browsers.macOS('Desktop'),
+      browser: ['FluxCRM', 'Chrome', '10.0.0'],
       markOnlineOnConnect: false,
       syncFullHistory: false,
       logger: pino({ level: 'silent' }) as any
