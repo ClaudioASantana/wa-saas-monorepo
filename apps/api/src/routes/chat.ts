@@ -31,7 +31,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
     try {
       const result = await pool.query(
         `SELECT 
-          c.id, c.workspace_id, c.channel_id, c.contact_id, c.agent_id, c.tenant_id, 
+          c.id, c.channel_id, c.contact_id, c.agent_id, c.tenant_id, 
           c.status, c.last_message_at, c.last_message_preview, c.unread_count, c.created_at,
           co.name as contact_name, co.phone as contact_phone, co.notes as contact_notes,
           a.name as agent_name
@@ -60,7 +60,6 @@ export async function chatRoutes(fastify: FastifyInstance) {
 
       const conversations = result.rows.map(r => ({
         id: r.id,
-        workspace_id: r.workspace_id,
         channel_id: r.channel_id,
         contact_id: r.contact_id,
         agent_id: r.agent_id,

@@ -12,7 +12,7 @@ export const usePostgresAuthState = async (pool: Pool, instanceName: string) => 
         `INSERT INTO whatsapp_sessions (instance_id, key_id, data) 
          VALUES ($1, $2, $3) 
          ON CONFLICT (instance_id, key_id) 
-         DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
+         DO UPDATE SET data = EXCLUDED.data`,
         [instanceName, key, rawData]
       );
     } catch (err) {

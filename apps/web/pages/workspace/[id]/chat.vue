@@ -420,6 +420,7 @@ onUnmounted(() => {
   off('message:new')
   off('message:update')
   off('conversation:status_changed')
+  off('conversation:updated')
   off('agent:joined')
   off('agent:left')
   off('agent:typing')

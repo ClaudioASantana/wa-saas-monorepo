@@ -20,11 +20,19 @@ export class WebhookService {
 
   private async processMessage(instanceName: string, msg: any) {
     try {
+      logger.info({ msg, instanceName }, 'Recebida mensagem no webhook')
+
       // Ignore fromMe or system messages
-      if (msg.key.fromMe) return
+      if (msg.key.fromMe) {
+        logger.info('Ignorando mensagem (fromMe=true)')
+        return
+      }
       
       const remoteJid = msg.key.remoteJid
-      if (!remoteJid || remoteJid.includes('@g.us')) return // Ignora grupos por enquanto
+      if (!remoteJid || remoteJid.includes('@g.us')) {
+        logger.info({ remoteJid }, 'Ignorando mensagem sem remoteJid ou de grupo')
+        return // Ignora grupos por enquanto
+      }
 
       const phone = remoteJid.split('@')[0]
       const pushName = msg.pushName || phone
