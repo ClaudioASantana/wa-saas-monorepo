@@ -43,7 +43,12 @@ export class WhatsAppService {
       browser: ['FluxCRM', 'Chrome', '10.0.0'],
       markOnlineOnConnect: false,
       syncFullHistory: false,
-      logger: pino({ level: 'silent' }) as any
+      qrTimeout: 90_000,
+      connectTimeoutMs: 120_000,
+      keepAliveIntervalMs: 30_000,
+      emitOwnEvents: false,
+      shouldIgnoreJid: (jid) => jid.endsWith('@broadcast'),
+      logger: pino({ level: 'debug' }) as any
     });
 
     this.sock.ev.on('creds.update', saveCreds);
@@ -58,21 +63,38 @@ export class WhatsAppService {
     });
 
     this.sock.ev.on('connection.update', (update) => {
-      const { connection, lastDisconnect, qr } = update;
+      const { connection, lastDisconnect, qr, isNewLogin, isOnline } = update;
+
+      console.log(`[${this.instanceName}] Connection update:`, {
+        connection,
+        isNewLogin,
+        isOnline,
+        hasQr: !!qr,
+        errorCode: (lastDisconnect?.error as Boom)?.output?.statusCode,
+        errorMsg: lastDisconnect?.error?.message
+      });
 
       if (qr) {
         this.currentQr = qr;
         this.connectionStatus = 'qr';
-        console.log(`[${this.instanceName}] 📬 New QR Code generated.`);
-        // For development convenience in terminal:
+        console.log(`[${this.instanceName}] 📬 New QR Code generated. Scan within 90s.`);
         qrcode.generate(qr, { small: true });
         
         this.queueService.publishWebhookEvent('qrcode.updated', this.instanceName, { qr });
       }
 
       if (connection === 'close') {
-        const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-        console.log(`[${this.instanceName}] Connection closed due to`, lastDisconnect?.error, 'reconnecting:', shouldReconnect);
+        const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+        const isConnectionLost = statusCode === 408 || lastDisconnect?.error?.message === 'Connection was lost';
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        
+        console.log(`[${this.instanceName}] ❌ Connection closed:`, {
+          reason: lastDisconnect?.error?.message,
+          statusCode,
+          DisconnectReason: Object.entries(DisconnectReason).find(([_, v]) => v === statusCode)?.[0],
+          isConnectionLost,
+          willReconnect: shouldReconnect
+        });
         
         this.sock = null;
         this.isConnecting = false;
@@ -80,15 +102,20 @@ export class WhatsAppService {
         this.connectionStatus = 'disconnected';
         
         if (shouldReconnect) {
-          this.init();
+          const retryDelay = isConnectionLost ? 5000 : 2000;
+          console.log(`[${this.instanceName}] 🔄 Reconnecting in ${retryDelay}ms...`);
+          setTimeout(() => this.init(), retryDelay);
         } else {
-          console.log(`[${this.instanceName}] Logged out from WhatsApp.`);
+          console.log(`[${this.instanceName}] 🚫 Logged out from WhatsApp. Manual reconnection required.`);
         }
       } else if (connection === 'open') {
         console.log(`[${this.instanceName}] ✅ WhatsApp connection opened successfully!`);
         this.isConnecting = false;
         this.currentQr = null;
         this.connectionStatus = 'connected';
+      } else if (connection === 'connecting') {
+        console.log(`[${this.instanceName}] 🔄 Connecting to WhatsApp...`);
+        this.connectionStatus = 'connecting';
       }
       
       if (connection) {

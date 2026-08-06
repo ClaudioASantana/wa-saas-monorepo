@@ -2,7 +2,12 @@
  * Teste de isolamento RLS (AC-06)
  * Uso: npx tsx src/db/test-isolation.ts
  */
+import { config } from 'dotenv'
+import { join } from 'path'
 import { Client } from 'pg'
+
+// Carregar variáveis de ambiente
+config({ path: join(__dirname, '../../../../.env') })
 
 async function run() {
   const url = process.env.DATABASE_URL

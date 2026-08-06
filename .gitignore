@@ -44,3 +44,4 @@ cloudflare-credentials.json
 
 # Supabase Backups
 supabase/backups/
+supabase/

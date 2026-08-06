@@ -51,14 +51,19 @@ const error = ref('')
 const handleSubmit = async () => {
   error.value = ''
 
-  const { error: authError } = await login(email.value, password.value)
+  try {
+    const { error: authError } = await login(email.value, password.value)
 
-  if (authError) {
-    error.value = authError
-    return
+    if (authError) {
+      error.value = authError
+      return
+    }
+
+    // Redirecionar para home usando navigateTo do Nuxt (mantém SPA)
+    await navigateTo('/', { replace: true })
+  } catch (err: any) {
+    console.error('Erro no handleSubmit:', err)
+    error.value = err?.message || 'Erro desconhecido ao fazer login'
   }
-
-  // Redirecionar para home usando navigateTo do Nuxt (mantém SPA)
-  await navigateTo('/', { replace: true })
 }
 </script>

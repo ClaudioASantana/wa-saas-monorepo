@@ -43,6 +43,8 @@ export const useAuth = () => {
         body: { email, password },
       })
 
+      console.log('Login response:', response)
+
       if (response.token) {
         token.value = response.token
         currentUser.value = response.user
@@ -55,6 +57,9 @@ export const useAuth = () => {
           const workspaceStore = useWorkspaceStore()
           workspaceStore.setWorkspace(response.user.workspace)
         }
+
+        console.log('Login successful, token saved:', token.value.substring(0, 20) + '...')
+        console.log('Current user:', currentUser.value)
       }
 
       return { error: null }

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
-    "db:test-isolation": "tsx src/db/test-isolation.ts"
+    "db:test-isolation": "tsx src/db/test-isolation.ts",
+    "db:create-user": "tsx src/db/create-user.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1059.0",

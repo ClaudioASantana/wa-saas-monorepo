@@ -2,7 +2,12 @@
  * Seed de teste — 2 tenants com dados isolados
  * Uso: npx tsx src/db/seed.ts
  */
+import { config } from 'dotenv'
 import { Client } from 'pg'
+import { join } from 'path'
+
+// Carregar variáveis de ambiente
+config({ path: join(__dirname, '../../../../.env') })
 
 async function run() {
   const url = process.env.DATABASE_URL

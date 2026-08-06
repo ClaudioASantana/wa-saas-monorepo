@@ -21,15 +21,9 @@
     "sync:skills:codex:global": "node .aios-core/infrastructure/scripts/codex-skills-sync/index.js --global",
     "validate:structure": "node .aios-core/infrastructure/scripts/aios-validator.js all",
     "validate:agents": "node .aios-core/infrastructure/scripts/validate-agents.js",
-    "backup": "./scripts/backup-supabase.sh daily",
-    "backup:daily": "./scripts/backup-supabase.sh daily",
-    "backup:weekly": "./scripts/backup-supabase.sh weekly",
-    "backup:monthly": "./scripts/backup-supabase.sh monthly",
-    "backup:restore": "./scripts/restore-supabase.sh",
-    "backup:restore:latest": "./scripts/restore-supabase.sh latest",
-    "backup:cron:install": "./scripts/setup-backup-cron.sh install",
-    "backup:cron:uninstall": "./scripts/setup-backup-cron.sh uninstall",
-    "backup:cron:status": "./scripts/setup-backup-cron.sh status"
+    "db:migrate": "npm run db:migrate --workspace=apps/api",
+    "db:seed": "npm run db:seed --workspace=apps/api",
+    "db:test": "npm run db:test-isolation --workspace=apps/api"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.0.0",

@@ -26,6 +26,6 @@ export default defineNuxtConfig({
     },
   },
   routeRules: {
-    '/api/**': { proxy: 'http://api:4005/**' }
+    '/api/**': { proxy: 'http://localhost:4001/**' }
   },
 })
